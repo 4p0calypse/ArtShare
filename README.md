@@ -10,7 +10,7 @@ ArtShare es una plataforma web que permite a los artistas compartir sus obras, r
 - Sistema de reacciones (likes)
 - Sistema de puntos canjeables por dinero real
 - Perfiles de usuario personalizables
-- Sistema de se guidores
+- Sistema de seguidores
 
 ## Requisitos
 
