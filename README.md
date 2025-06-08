@@ -4,7 +4,7 @@ ArtShare es una plataforma web que permite a los artistas compartir sus obras, r
 
 ## Características
 
-- Registro y autenticación de usuarios
+- Registro y aut   enticación de usuarios
 - Subida y gestión de obras de arte
 - Sistema de comentarios y respuestas
 - Sistema de reacciones (likes)
