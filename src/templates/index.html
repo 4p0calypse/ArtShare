@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h1 class="display-4">Bienvenido a ArtShare</h1>
+        <p class="lead">Comparte tu arte, recibe feedback y gana puntos canjeables por dinero real.</p>
+        {% if not current_user.is_authenticated %}
+        <div class="mt-4">
+            <p class="text-muted">Únete a nuestra comunidad de {{ total_users }} usuarios y explora nuestros {{ total_artworks }} artworks</p>
+            <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-lg me-2">Registrarse</a>
+            <a href="{{ url_for('auth.login') }}" class="btn btn-outline-primary btn-lg">Iniciar Sesión</a>
+        </div>
+        {% else %}
+        <div class="mt-4">
+            <p class="text-muted">Bienvenido de nuevo, {{ current_user.username }}!</p>
+            <p class="text-muted">Tienes {{ total_artworks }} artworks para explorar</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row mb-3">
+    <div class="col-12 d-flex justify-content-between align-items-center">
+        <h2>Artworks Recientes</h2>
+        <hr>
+    </div>
+</div>
+
+<div class="row row-cols-1 row-cols-md-3 g-3">
+    {% for artwork in artworks %}
+    <div class="col">
+        <div class="card artwork-preview-card">
+            <div class="artwork-preview-img-container">
+                <img src="{{ url_for('main.uploaded_file', filename=artwork.image_path) }}" 
+                     class="card-img-top artwork-preview-img" alt="{{ artwork.title }}">
+            </div>
+            <div class="card-body p-2">
+                <h6 class="card-title mb-1 text-truncate">{{ artwork.title }}</h6>
+                <p class="card-text small mb-2 text-truncate">{{ artwork.description }}</p>
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="d-flex gap-2">
+                        <small class="text-muted">
+                            <i class="fas fa-coins"></i> {{ format_points(artwork.points_received) }}
+                        </small>
+                        <small class="text-muted">
+                            <i class="fas fa-heart"></i> {{ artwork.likes|length }}
+                        </small>
+                        <small class="text-muted">
+                            <i class="fas fa-eye"></i> {{ artwork.views }}
+                        </small>
+                    </div>
+                    <a href="{{ url_for('artwork.view', artwork_id=artwork.id) }}" 
+                       class="btn btn-sm btn-outline-primary">Ver más</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="col-12">
+        <div class="alert alert-info">
+            No hay artworks publicados aún. ¡Sé el primero en compartir tu arte!
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+{% if remaining_artworks > 0 %}
+<div class="row mt-4">
+    <div class="col-12 text-center">
+        <a href="{{ url_for('main.explore') }}" class="btn btn-primary btn-lg">
+            <i class="fas fa-images me-2"></i>
+            Ver todos los artworks
+        </a>
+    </div>
+</div>
+{% endif %}
+
+<style>
+.artwork-preview-card {
+    height: 280px;
+    overflow: hidden;
+    transition: transform 0.2s ease-in-out;
+}
+
+.artwork-preview-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+.artwork-preview-img-container {
+    height: 180px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--card-bg);
+}
+
+.artwork-preview-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.card-body {
+    background-color: var(--card-bg);
+}
+
+.card-title {
+    font-size: 1rem;
+    line-height: 1.2;
+}
+
+.card-text {
+    font-size: 0.875rem;
+    line-height: 1.4;
+}
+
+.btn-outline-primary {
+    border-width: 1.5px;
+}
+
+.btn-outline-primary:hover {
+    transform: translateY(-1px);
+}
+</style>
+{% endblock %} 

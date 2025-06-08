@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <h1 class="mb-4">Comprar Puntos</h1>
+            
+            <!-- Tarjeta de Información -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">Tasa de Conversión</h5>
+                    <p class="card-text">
+                        <i class="fas fa-euro-sign"></i> 1€ = 
+                        <i class="fas fa-coins text-warning"></i> 100 puntos
+                    </p>
+                    <p class="card-text">
+                        <small class="text-muted">
+                            Tu balance actual: {{ format_points(current_user.points) }} puntos
+                        </small>
+                    </p>
+                </div>
+            </div>
+
+            <!-- Formulario de Compra -->
+            <div class="card">
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('points.buy') }}" id="buyForm">
+                        <div class="mb-3">
+                            <label for="amount" class="form-label">Cantidad en Euros</label>
+                            <div class="input-group">
+                                <span class="input-group-text">€</span>
+                                <input type="number" 
+                                       class="form-control" 
+                                       id="amount" 
+                                       name="amount" 
+                                       min="1" 
+                                       step="0.01" 
+                                       required
+                                       pattern="\d*\.?\d+"
+                                       placeholder="Introduce la cantidad en euros"
+                                       oninput="validateAmount(this)">
+                            </div>
+                            <div class="form-text">
+                                Recibirás <span id="pointsToReceive">0</span> puntos
+                            </div>
+                            <div class="invalid-feedback" id="amountError">
+                                Por favor, introduce una cantidad válida (mínimo 1€)
+                            </div>
+                        </div>
+                        
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i>
+                            Esta es una simulación. En un entorno real, aquí se integraría un sistema de pago.
+                        </div>
+                        
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary" id="submitBtn">
+                                <i class="fas fa-shopping-cart"></i> Comprar Puntos
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+    function validateAmount(input) {
+        const amount = parseFloat(input.value) || 0;
+        const points = Math.floor(amount * 100); // Asegurar que los puntos sean enteros
+        const submitBtn = document.getElementById('submitBtn');
+        const amountError = document.getElementById('amountError');
+        
+        // Actualizar puntos a recibir
+        document.getElementById('pointsToReceive').textContent = points.toLocaleString();
+        
+        // Validar el monto
+        if (amount < 1) {
+            input.classList.add('is-invalid');
+            submitBtn.disabled = true;
+            amountError.style.display = 'block';
+        } else {
+            input.classList.remove('is-invalid');
+            submitBtn.disabled = false;
+            amountError.style.display = 'none';
+        }
+    }
+
+    // Validar el formulario antes de enviar
+    document.getElementById('buyForm').addEventListener('submit', function(e) {
+        const amount = parseFloat(document.getElementById('amount').value) || 0;
+        if (amount < 1) {
+            e.preventDefault();
+            document.getElementById('amount').classList.add('is-invalid');
+            document.getElementById('amountError').style.display = 'block';
+        }
+    });
+</script>
+{% endblock %}
+{% endblock %} 

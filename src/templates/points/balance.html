@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <h1 class="mb-4">Balance de Puntos</h1>
+            
+            <!-- Tarjeta de Balance -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">Balance Actual</h5>
+                    <p class="card-text display-4">{{ format_points(points) }} puntos</p>
+                    <p class="card-text">
+                        <small class="text-muted">
+                            Equivalente a {{ (points * 0.01)|format_currency }}
+                            <i class="fas fa-info-circle" data-bs-toggle="tooltip" 
+                               title="100 puntos = 1€"></i>
+                        </small>
+                    </p>
+                </div>
+            </div>
+
+            <!-- Botones de Acción -->
+            <div class="d-grid gap-2 mb-4">
+                <a href="{{ url_for('points.buy') }}" class="btn btn-success">
+                    <i class="fas fa-shopping-cart"></i> Comprar Puntos
+                </a>
+                {% if points >= 1000 %}
+                <a href="{{ url_for('points.withdraw') }}" class="btn btn-primary">
+                    <i class="fas fa-money-bill-wave"></i> Retirar Puntos
+                </a>
+                {% else %}
+                <button class="btn btn-primary" disabled>
+                    <i class="fas fa-money-bill-wave"></i> Retirar Puntos (Mínimo 1000)
+                </button>
+                {% endif %}
+                <a href="{{ url_for('points.transactions') }}" class="btn btn-outline-primary">
+                    <i class="fas fa-history"></i> Ver Historial
+                </a>
+            </div>
+
+            <!-- Últimas Transacciones -->
+            <h2 class="h4 mb-3">Últimas Transacciones</h2>
+            {% if transactions %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Tipo</th>
+                            <th>Puntos</th>
+                            <th>Referencia</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for tx in transactions[:5] %}
+                        <tr>
+                            <td>{{ tx.created_at|datetime }}</td>
+                            <td>
+                                {% if tx.type == 'give' %}
+                                <span class="text-danger">
+                                    <i class="fas fa-arrow-up"></i> Enviado
+                                </span>
+                                {% else %}
+                                <span class="text-success">
+                                    <i class="fas fa-arrow-down"></i> Recibido
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if tx.type == 'give' %}
+                                <span class="text-danger">-{{ format_points(tx.points) }}</span>
+                                {% else %}
+                                <span class="text-success">+{{ format_points(tx.points) }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if tx.reference_id %}
+                                    {% set artwork = get_artwork(tx.reference_id, sirope) %}
+                                    {% if artwork %}
+                                    <a href="{{ url_for('artwork.view', artwork_id=artwork.id) }}">
+                                        {{ artwork.title }}
+                                    </a>
+                                    {% else %}
+                                    <em>Artwork eliminado</em>
+                                    {% endif %}
+                                {% else %}
+                                <em>Sin referencia</em>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% if transactions|length > 5 %}
+                <div class="text-center mt-3">
+                    <a href="{{ url_for('points.transactions') }}" class="btn btn-link">
+                        Ver todas las transacciones
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+            {% else %}
+            <div class="alert alert-info">
+                No tienes transacciones registradas aún.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+    // Inicializar tooltips de Bootstrap
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl)
+    })
+</script>
+{% endblock %}
+{% endblock %} 

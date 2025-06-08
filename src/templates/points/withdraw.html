@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+.alert-info {
+    background-color: rgba(95, 205, 217, 0.1);
+    border-color: var(--color-light-blue);
+}
+
+.text-info {
+    color: var(--color-light-blue) !important;
+}
+</style>
+
+<div class="container">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <h1 class="mb-4">Retirar Puntos</h1>
+            
+            <!-- Tarjeta de Información -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">Tasa de Conversión</h5>
+                    <p class="card-text">
+                        <i class="fas fa-coins text-warning"></i> 100 puntos = 
+                        <i class="fas fa-euro-sign"></i> 1€
+                    </p>
+                    <p class="card-text">
+                        Tu balance actual: {{ format_points(points) }} puntos
+                        ({{ (points * 0.01)|format_currency }})
+                    </p>
+                </div>
+            </div>
+
+            <!-- Formulario de Retiro -->
+            <div class="card">
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('points.withdraw') }}" id="withdrawForm">
+                        <div class="mb-3">
+                            <label for="points" class="form-label">Cantidad de Puntos a Retirar</label>
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="fas fa-coins"></i>
+                                </span>
+                                <input type="number" 
+                                       class="form-control" 
+                                       id="points" 
+                                       name="points" 
+                                       min="{{ min_points }}" 
+                                       max="{{ points }}"
+                                       step="100"
+                                       required
+                                       placeholder="Mínimo {{ format_points(min_points) }} puntos"
+                                       oninput="validatePoints(this)">
+                            </div>
+                            <div class="form-text">
+                                Recibirás <span id="amountToReceive">0</span>€
+                            </div>
+                            <div class="invalid-feedback" id="pointsError">
+                                Por favor, introduce una cantidad válida (mínimo {{ format_points(min_points) }} puntos)
+                            </div>
+                        </div>
+                        
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle text-info"></i>
+                            <span class="text-info">
+                                Esta es una simulación. En un entorno real, aquí introducirías tus datos bancarios.
+                            </span>
+                        </div>
+                        
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-accent" id="submitBtn">
+                                <i class="fas fa-money-bill-wave"></i> Solicitar Retiro
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+    function validatePoints(input) {
+        const points = parseInt(input.value) || 0;
+        const minPoints = {{ min_points }};
+        const maxPoints = {{ points }};
+        const amountToReceive = (points * {{ conversion_rate }}).toFixed(2);
+        const submitBtn = document.getElementById('submitBtn');
+        const pointsError = document.getElementById('pointsError');
+        
+        // Actualizar cantidad a recibir
+        document.getElementById('amountToReceive').textContent = amountToReceive;
+        
+        // Validar los puntos
+        if (points < minPoints || points > maxPoints) {
+            input.classList.add('is-invalid');
+            submitBtn.disabled = true;
+            pointsError.style.display = 'block';
+        } else {
+            input.classList.remove('is-invalid');
+            submitBtn.disabled = false;
+            pointsError.style.display = 'none';
+        }
+    }
+
+    // Validar el formulario antes de enviar
+    document.getElementById('withdrawForm').addEventListener('submit', function(e) {
+        const points = parseInt(document.getElementById('points').value) || 0;
+        const minPoints = {{ min_points }};
+        const maxPoints = {{ points }};
+        
+        if (points < minPoints || points > maxPoints) {
+            e.preventDefault();
+            document.getElementById('points').classList.add('is-invalid');
+            document.getElementById('pointsError').style.display = 'block';
+        }
+    });
+</script>
+{% endblock %}
+{% endblock %} 

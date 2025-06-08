@@ -1,0 +1,23 @@
+# Framework web
+Flask==3.0.0
+Werkzeug==3.0.1
+
+# Autenticación y sesiones
+Flask-Login==0.6.3
+Flask-Session==0.5.0
+redis==5.0.1
+
+# Formularios y validación
+Flask-WTF==1.2.1
+WTForms==3.1.1
+email-validator==2.1.0.post1
+
+# Base de datos y almacenamiento
+sirope==1.2.0
+
+# Procesamiento de imágenes
+Pillow==10.1.0
+
+# Utilidades
+python-dateutil==2.8.2
+pytz==2023.3.post1 

@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <div class="text-center mb-5">
+                <h1 class="display-4">Acerca de ArtShare</h1>
+                <p class="lead text-muted">Una plataforma para artistas y amantes del arte</p>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h2 class="h4 mb-4">Nuestra Misión</h2>
+                    <p>ArtShare nace con el objetivo de crear un espacio donde los artistas puedan compartir sus obras, 
+                    recibir retroalimentación de la comunidad y monetizar su talento de una manera justa y transparente.</p>
+                    
+                    <p>Creemos en el poder del arte para conectar personas y en la importancia de apoyar a los artistas 
+                    emergentes, proporcionándoles una plataforma donde puedan crecer y prosperar.</p>
+                </div>
+            </div>
+
+            <div class="row mb-4">
+                <div class="col-md-4">
+                    <div class="card h-100">
+                        <div class="card-body text-center">
+                            <i class="fas fa-paint-brush fa-3x text-primary mb-3"></i>
+                            <h3 class="h5">Comparte tu Arte</h3>
+                            <p class="card-text">Sube tus obras y compártelas con una comunidad global de amantes del arte.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card h-100">
+                        <div class="card-body text-center">
+                            <i class="fas fa-coins fa-3x text-warning mb-3"></i>
+                            <h3 class="h5">Gana Puntos</h3>
+                            <p class="card-text">Recibe puntos por tus ventas y participación en la comunidad.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card h-100">
+                        <div class="card-body text-center">
+                            <i class="fas fa-money-bill-wave fa-3x text-success mb-3"></i>
+                            <h3 class="h5">Convierte a Dinero</h3>
+                            <p class="card-text">Cambia tus puntos por dinero real de manera fácil y segura.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h2 class="h4 mb-4">¿Cómo Funciona?</h2>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h3 class="h5">Para Artistas</h3>
+                            <ul class="list-unstyled">
+                                <li class="mb-2"><i class="fas fa-check text-success me-2"></i> Crea tu perfil de artista</li>
+                                <li class="mb-2"><i class="fas fa-check text-success me-2"></i> Sube tus obras</li>
+                                <li class="mb-2"><i class="fas fa-check text-success me-2"></i> Establece precios en puntos</li>
+                                <li class="mb-2"><i class="fas fa-check text-success me-2"></i> Recibe feedback y likes</li>
+                                <li class="mb-2"><i class="fas fa-check text-success me-2"></i> Retira tus ganancias</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h3 class="h5">Para Compradores</h3>
+                            <ul class="list-unstyled">
+                                <li class="mb-2"><i class="fas fa-check text-success me-2"></i> Explora obras únicas</li>
+                                <li class="mb-2"><i class="fas fa-check text-success me-2"></i> Apoya a artistas</li>
+                                <li class="mb-2"><i class="fas fa-check text-success me-2"></i> Comenta y da likes</li>
+                                <li class="mb-2"><i class="fas fa-check text-success me-2"></i> Compra con puntos</li>
+                                <li class="mb-2"><i class="fas fa-check text-success me-2"></i> Colecciona arte digital</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="text-center">
+                <h2 class="h4 mb-4">¿Listo para empezar?</h2>
+                {% if not current_user.is_authenticated %}
+                <div class="d-grid gap-2 d-sm-block">
+                    <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-lg me-sm-2">Registrarse</a>
+                    <a href="{{ url_for('auth.login') }}" class="btn btn-outline-primary btn-lg">Iniciar Sesión</a>
+                </div>
+                {% else %}
+                <a href="{{ url_for('artwork.create') }}" class="btn btn-primary btn-lg">Subir Artwork</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

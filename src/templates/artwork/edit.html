@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0">Editar Artwork</h4>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="" enctype="multipart/form-data">
+                    {{ form.hidden_tag() }}
+                    <div class="mb-3">
+                        {{ form.title.label(class="form-label") }}
+                        {{ form.title(class="form-control" + (" is-invalid" if form.title.errors else "")) }}
+                        {% for error in form.title.errors %}
+                        <div class="invalid-feedback">
+                            {{ error }}
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <div class="mb-3">
+                        {{ form.description.label(class="form-label") }}
+                        {{ form.description(class="form-control" + (" is-invalid" if form.description.errors else ""), rows="4") }}
+                        {% for error in form.description.errors %}
+                        <div class="invalid-feedback">
+                            {{ error }}
+                        </div>
+                        {% endfor %}
+                    </div>
+                    
+                    <!-- Sección de imágenes -->
+                    <div class="mb-3">
+                        <div class="row">
+                            <!-- Imagen Actual -->
+                            <div class="col-md-6">
+                                <h5 class="mb-3">Imagen Actual</h5>
+                                <div class="current-image-container">
+                                    <img src="{{ url_for('main.uploaded_file', filename=artwork.image_path) }}"
+                                         class="img-fluid rounded artwork-preview" 
+                                         alt="{{ artwork.title }}">
+                                </div>
+                            </div>
+                            
+                            <!-- Nueva Imagen -->
+                            <div class="col-md-6">
+                                <h5 class="mb-3">Imagen Nueva</h5>
+                                <div class="new-image-container">
+                                    <img id="image-preview" 
+                                         class="img-fluid rounded artwork-preview d-none" 
+                                         alt="Vista previa">
+                                    <div id="upload-placeholder" 
+                                         class="upload-placeholder d-flex align-items-center justify-content-center">
+                                        <span>Selecciona una imagen para ver la vista previa</span>
+                                    </div>
+                                </div>
+                                {{ form.image.label(class="form-label mt-2") }}
+                                {{ form.image(class="form-control" + (" is-invalid" if form.image.errors else ""), 
+                                            accept="image/*",
+                                            onchange="previewImage(this);") }}
+                                {% for error in form.image.errors %}
+                                <div class="invalid-feedback">
+                                    {{ error }}
+                                </div>
+                                {% endfor %}
+                                <div class="form-text">
+                                    Deja este campo vacío si no quieres cambiar la imagen.
+                                    Formatos permitidos: JPG, PNG, GIF. Tamaño máximo: 5MB.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.tags.label(class="form-label") }}
+                        {{ form.tags(class="form-control" + (" is-invalid" if form.tags.errors else "")) }}
+                        {% for error in form.tags.errors %}
+                        <div class="invalid-feedback">
+                            {{ error }}
+                        </div>
+                        {% endfor %}
+                        <div class="form-text">
+                            Separa las etiquetas con comas (ejemplo: arte, digital, ilustración)
+                        </div>
+                    </div>
+                    <div class="d-grid gap-2">
+                        {{ form.submit(class="btn btn-primary") }}
+                        <a href="{{ url_for('artwork.view', artwork_id=artwork.id) }}" class="btn btn-outline-secondary">Cancelar</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.artwork-preview {
+    max-height: 300px;
+    width: 100%;
+    object-fit: contain;
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+}
+
+.current-image-container,
+.new-image-container {
+    height: 300px;
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 0.25rem;
+    overflow: hidden;
+}
+
+.upload-placeholder {
+    height: 100%;
+    background-color: #f8f9fa;
+    color: #6c757d;
+    text-align: center;
+    padding: 1rem;
+}
+
+.upload-placeholder span {
+    font-size: 0.9rem;
+}
+</style>
+
+<script>
+function previewImage(input) {
+    const preview = document.getElementById('image-preview');
+    const placeholder = document.getElementById('upload-placeholder');
+    
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        
+        reader.onload = function(e) {
+            preview.src = e.target.result;
+            preview.classList.remove('d-none');
+            placeholder.classList.add('d-none');
+        }
+        
+        reader.readAsDataURL(input.files[0]);
+    } else {
+        preview.classList.add('d-none');
+        placeholder.classList.remove('d-none');
+    }
+}
+</script>
+
+{% endblock %} 

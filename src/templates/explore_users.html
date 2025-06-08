@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h2 class="mb-3">Explorar Usuarios</h2>
+            <form action="{{ url_for('social.explore_users') }}" method="GET" class="mb-4">
+                <div class="input-group">
+                    <select name="filter" class="form-select" style="max-width: 200px;">
+                        <option value="all" {% if request.args.get('filter') == 'all' %}selected{% endif %}>Todos los usuarios</option>
+                        <option value="new" {% if request.args.get('filter') == 'new' %}selected{% endif %}>Nuevos usuarios</option>
+                        <option value="active" {% if request.args.get('filter') == 'active' %}selected{% endif %}>Más activos</option>
+                    </select>
+                    <input type="text" 
+                           name="q" 
+                           class="form-control" 
+                           placeholder="Buscar usuarios..."
+                           value="{{ request.args.get('q', '') }}"
+                           aria-label="Buscar usuarios">
+                    <button class="btn btn-primary" type="submit">
+                        <i class="fas fa-search"></i> Buscar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    {% if search_performed %}
+    <div class="row mb-4">
+        <div class="col">
+            <div class="alert alert-info">
+                {% if users %}
+                Se encontraron {{ users|length }} usuarios para "{{ request.args.get('q') }}"
+                {% else %}
+                No se encontraron usuarios para "{{ request.args.get('q') }}"
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+        {% for user in users %}
+        <div class="col">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    {% if user.profile_picture %}
+                    <img src="{{ url_for('main.profile_picture', filename=user.profile_picture) }}"
+                         class="rounded-circle mb-3" 
+                         style="width: 100px; height: 100px; object-fit: cover;"
+                         alt="Foto de perfil de {{ user.username }}">
+                    {% else %}
+                    <img src="{{ url_for('static', filename='img/default.jpg') }}"
+                         class="rounded-circle mb-3" 
+                         style="width: 100px; height: 100px; object-fit: cover;"
+                         alt="Foto de perfil por defecto">
+                    {% endif %}
+                    
+                    <h5 class="card-title mb-2">{{ user.username }}</h5>
+                    <p class="text-muted small mb-3">
+                        <i class="fas fa-clock"></i> Miembro desde {{ user.created_at.strftime('%d/%m/%Y') }}
+                    </p>
+                    <p class="card-text text-muted mb-3">
+                        {% if user is defined and user.bio is defined %}
+                            {{ user.bio[:100] if user.bio else "Sin biografía" }}{% if user.bio and user.bio|length > 100 %}...{% endif %}
+                        {% else %}
+                            Sin biografía
+                        {% endif %}
+                    </p>
+                    
+                    <div class="d-flex justify-content-around mb-3">
+                        <div class="text-center">
+                            <div class="h5 mb-0">{{ user.artworks|default([])|length }}</div>
+                            <small class="text-muted">Artworks</small>
+                        </div>
+                        <div class="text-center">
+                            <div class="h5 mb-0">{{ user.followers|default([])|length }}</div>
+                            <small class="text-muted">Seguidores</small>
+                        </div>
+                        <div class="text-center">
+                            <div class="h5 mb-0">{{ user.following|default([])|length }}</div>
+                            <small class="text-muted">Siguiendo</small>
+                        </div>
+                    </div>
+                    
+                    <a href="{{ url_for('auth.user_profile', username=user.username) }}" 
+                       class="btn btn-primary btn-sm w-100">Ver Perfil</a>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="col-12">
+            <div class="alert alert-info">
+                No hay usuarios para mostrar.
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<style>
+.input-group .form-select {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+.input-group .form-control {
+    border-radius: 0;
+}
+</style>
+{% endblock %} 

@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <h1 class="mb-4">Historial de Transacciones</h1>
+    
+    <div class="card mb-4">
+        <div class="card-body">
+            <h5 class="card-title">Balance Actual</h5>
+            <p class="card-text display-4">{{ format_points(current_user.points) }} puntos</p>
+        </div>
+    </div>
+
+    {% if transactions %}
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th class="text-white">Fecha</th>
+                    <th class="text-white">Tipo</th>
+                    <th class="text-white">Puntos</th>
+                    <th class="text-white">Referencia</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for tx in transactions %}
+                <tr>
+                    <td class="text-white">{{ tx.created_at|datetime }}</td>
+                    <td>
+                        {% if tx.type == 'give' %}
+                        <span class="text-danger">
+                            <i class="fas fa-arrow-up"></i> Enviado
+                        </span>
+                        {% else %}
+                        <span class="text-success">
+                            <i class="fas fa-arrow-down"></i> Recibido
+                        </span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if tx.type == 'give' %}
+                        <span class="text-danger">-{{ format_points(tx.points) }}</span>
+                        {% else %}
+                        <span class="text-success">+{{ format_points(tx.points) }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-white">
+                        {% if tx.reference_id %}
+                            {% set artwork = get_artwork(tx.reference_id, sirope) %}
+                            {% if artwork %}
+                            <a href="{{ url_for('artwork.view', artwork_id=artwork.id) }}" class="text-white text-decoration-underline">
+                                {{ artwork.title }}
+                            </a>
+                            {% else %}
+                            <em class="text-white">Artwork eliminado</em>
+                            {% endif %}
+                        {% else %}
+                        <em class="text-white">Sin referencia</em>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="alert alert-info">
+        <span class="text-white">No tienes transacciones registradas aún.</span>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.table {
+    --bs-table-hover-color: var(--color-text);
+    --bs-table-hover-bg: rgba(255, 255, 255, 0.05);
+}
+
+.table td, .table th {
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+.alert-info {
+    color: var(--color-text);
+    background-color: rgba(95, 205, 217, 0.1);
+    border-color: var(--color-light-blue);
+}
+</style>
+{% endblock %} 

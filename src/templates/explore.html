@@ -1,0 +1,220 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col">
+            <h1>Explorar Artworks</h1>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col">
+            <form method="GET" action="{{ url_for('main.explore') }}" class="d-flex gap-2">
+                <div class="input-group">
+                    <select class="form-select flex-shrink-1" style="max-width: 150px;" name="search_type" id="search_type">
+                        <option value="all" {% if search_type == 'all' %}selected{% endif %}>Todo</option>
+                        <option value="title" {% if search_type == 'title' %}selected{% endif %}>Título</option>
+                        <option value="tags" {% if search_type == 'tags' %}selected{% endif %}>Tags</option>
+                    </select>
+                    <input type="text" 
+                           class="form-control" 
+                           placeholder="Buscar..." 
+                           name="q" 
+                           value="{{ request.args.get('q', '') }}"
+                           aria-label="Término de búsqueda">
+                    <select class="form-select flex-shrink-1" style="max-width: 200px;" name="sort_by" id="sort_by">
+                        <option value="recent" {% if sort_by == 'recent' %}selected{% endif %}>Más recientes</option>
+                        <option value="title" {% if sort_by == 'title' %}selected{% endif %}>Por título</option>
+                        <option value="likes" {% if sort_by == 'likes' %}selected{% endif %}>Por likes</option>
+                        <option value="views" {% if sort_by == 'views' %}selected{% endif %}>Por vistas</option>
+                        <option value="points" {% if sort_by == 'points' %}selected{% endif %}>Por puntos</option>
+                    </select>
+                    <select class="form-select flex-shrink-1" style="max-width: 150px;" name="sort_order" id="sort_order">
+                        <option value="desc" {% if sort_order == 'desc' %}selected{% endif %}>Descendente</option>
+                        <option value="asc" {% if sort_order == 'asc' %}selected{% endif %}>Ascendente</option>
+                    </select>
+                    <button class="btn btn-primary" type="submit">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+                {% if request.args.get('q') %}
+                <a href="{{ url_for('main.explore') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-times"></i> Limpiar
+                </a>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+
+    {% if search_performed %}
+    <div class="row mb-4">
+        <div class="col">
+            <div class="alert alert-info">
+                {% if artworks %}
+                Se encontraron {{ artworks|length }} resultados para "{{ request.args.get('q') }}"
+                {% else %}
+                No se encontraron resultados para "{{ request.args.get('q') }}"
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+        {% for artwork in artworks %}
+        <div class="col">
+            <div class="card artwork-card">
+                <div class="artwork-image-container">
+                    <img src="{{ url_for('main.uploaded_file', filename=artwork.image_path) }}" 
+                         class="artwork-image" 
+                         alt="{{ artwork.title }}">
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <h5 class="card-title mb-0">{{ artwork.title }}</h5>
+                        <a href="{{ url_for('auth.profile', username=artwork.author) }}" class="text-decoration-none">
+                            <small class="text-muted">
+                                <i class="fas fa-user"></i> {{ artwork.author }}
+                            </small>
+                        </a>
+                    </div>
+                    <p class="card-text">{{ artwork.description[:100] }}{% if artwork.description|length > 100 %}...{% endif %}</p>
+                    
+                    {% if artwork.tags %}
+                    <div class="mb-3">
+                        {% for tag in artwork.tags %}
+                        <a href="{{ url_for('main.explore', search_type='tags', q=tag) }}" 
+                           class="badge bg-secondary text-decoration-none me-1">
+                            {{ tag }}
+                        </a>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <small class="text-muted">
+                                <i class="fas fa-eye"></i> {{ artwork.views }}
+                            </small>
+                            <small class="text-muted ms-2">
+                                <i class="fas fa-heart"></i> {{ artwork.likes|length }}
+                            </small>
+                            <small class="text-muted ms-2">
+                                <i class="fas fa-comment"></i> {{ artwork.comments|length }}
+                            </small>
+                        </div>
+                        <small class="text-muted">
+                            <i class="fas fa-coins text-warning"></i> {{ artwork.points_received }}
+                        </small>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <a href="{{ url_for('artwork.view', artwork_id=artwork.id) }}" 
+                       class="btn btn-primary btn-sm w-100">Ver más</a>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="col-12">
+            <div class="alert alert-info">
+                No hay artworks disponibles para explorar.
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<style>
+.input-group .form-select {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+.input-group .form-control {
+    border-radius: 0;
+}
+
+.input-group .btn {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+}
+
+/* Estilos para las tarjetas de artwork */
+.artwork-card {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    transition: transform 0.2s ease-in-out;
+}
+
+.artwork-image-container {
+    width: 100%;
+    height: 300px;
+    overflow: hidden;
+    position: relative;
+}
+
+.artwork-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+}
+
+.card-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.card-title {
+    font-size: 1.1rem;
+    line-height: 1.4;
+    margin-bottom: 0.5rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+.card-text {
+    color: var(--text-secondary);
+    margin-bottom: 1rem;
+    flex-grow: 1;
+}
+
+.badge {
+    background-color: var(--accent-color) !important;
+    color: var(--dark-bg) !important;
+    padding: 0.5em 1em;
+    font-size: 0.8rem;
+    transition: all 0.2s ease-in-out;
+}
+
+.badge:hover {
+    background-color: var(--accent-hover) !important;
+}
+
+.card-footer {
+    background-color: transparent;
+    border-top: 1px solid var(--border-color);
+    padding: 1rem;
+}
+
+.btn-primary {
+    background-color: var(--accent-color);
+    border-color: var(--accent-color);
+    color: var(--dark-bg);
+    transition: all 0.2s ease-in-out;
+}
+
+.btn-primary:hover {
+    background-color: var(--accent-hover);
+    border-color: var(--accent-hover);
+}
+</style>
+{% endblock %} 

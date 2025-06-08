@@ -1,0 +1,397 @@
+{% extends "base.html" %}
+
+{% block head %}
+<!-- Añadir CSS de Cropper.js -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body text-center">
+                {% if current_user.profile_picture %}
+                <img src="{{ url_for('main.profile_picture', filename=current_user.profile_picture) }}" 
+                     alt="Foto de perfil" 
+                     class="rounded-circle mb-3" 
+                     style="width: 150px; height: 150px; object-fit: cover;">
+                {% else %}
+                <img src="{{ url_for('static', filename='img/default.jpg') }}" 
+                     alt="Foto de perfil" 
+                     class="rounded-circle mb-3" 
+                     style="width: 150px; height: 150px; object-fit: cover;">
+                {% endif %}
+                <h4 class="card-title">{{ current_user.username }}</h4>
+                <p class="text-muted">{{ current_user.bio or "Sin biografía" }}</p>
+                <p class="text-muted">
+                    <i class="fas fa-clock"></i> Miembro desde {{ current_user.created_at.strftime('%d/%m/%Y') }}
+                    {% if current_user.created_at %}
+                        {% set days = ((now() - current_user.created_at).days) %}
+                        ({{ days }} día{{ 's' if days != 1 }})
+                    {% endif %}
+                </p>
+                <div class="d-flex justify-content-around mb-3">
+                    <div class="text-center">
+                        <div class="h5 mb-0">{{ artworks|length }}</div>
+                        <small class="text-muted">Artworks</small>
+                    </div>
+                    <div class="text-center">
+                        <button class="btn btn-link text-decoration-none p-0" data-bs-toggle="modal" data-bs-target="#followersModal">
+                            <div class="h5 mb-0">{{ current_user.followers|default([])|length }}</div>
+                            <small class="text-muted">Seguidores</small>
+                        </button>
+                    </div>
+                    <div class="text-center">
+                        <button class="btn btn-link text-decoration-none p-0" data-bs-toggle="modal" data-bs-target="#followingModal">
+                            <div class="h5 mb-0">{{ current_user.following|default([])|length }}</div>
+                            <small class="text-muted">Siguiendo</small>
+                        </button>
+                    </div>
+                </div>
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#editProfileModal">
+                    <i class="fas fa-edit"></i> Editar Perfil
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-8">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Mis Artworks</h5>
+                <div class="d-flex gap-2 align-items-center">
+                    <form method="GET" action="{{ url_for('auth.profile') }}" class="d-flex gap-2">
+                        <select class="form-select form-select-sm" name="sort_by" id="sort_by" onchange="this.form.submit()">
+                            <option value="recent" {% if sort_by == 'recent' %}selected{% endif %}>Más recientes</option>
+                            <option value="title" {% if sort_by == 'title' %}selected{% endif %}>Por título</option>
+                            <option value="likes" {% if sort_by == 'likes' %}selected{% endif %}>Por likes</option>
+                            <option value="views" {% if sort_by == 'views' %}selected{% endif %}>Por vistas</option>
+                            <option value="points" {% if sort_by == 'points' %}selected{% endif %}>Por puntos</option>
+                        </select>
+                        <select class="form-select form-select-sm" name="sort_order" id="sort_order" onchange="this.form.submit()">
+                            <option value="desc" {% if sort_order == 'desc' %}selected{% endif %}>Descendente</option>
+                            <option value="asc" {% if sort_order == 'asc' %}selected{% endif %}>Ascendente</option>
+                        </select>
+                    </form>
+                    <a href="{{ url_for('artwork.create') }}" class="btn btn-primary btn-sm">
+                        <i class="fas fa-plus"></i> Nuevo Artwork
+                    </a>
+                </div>
+            </div>
+            <div class="card-body">
+                {% if artworks %}
+                <div class="row row-cols-1 row-cols-md-2 g-4">
+                    {% for artwork in artworks[:4] %}
+                    <div class="col">
+                        <div class="card h-100">
+                            <img src="{{ url_for('main.uploaded_file', filename=artwork.image_path) }}"
+                                 class="card-img-top" alt="{{ artwork.title }}"
+                                 style="height: 200px; object-fit: cover;">
+                            <div class="card-body">
+                                <h5 class="card-title">{{ artwork.title }}</h5>
+                                <p class="card-text">{{ artwork.description[:100] }}{% if artwork.description|length > 100 %}...{% endif %}</p>
+                            </div>
+                            <div class="card-footer border-0 bg-transparent">
+                                <a href="{{ url_for('artwork.view', artwork_id=artwork.id) }}"
+                                   class="btn btn-sm btn-outline-primary float-end">Ver</a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% if artworks|length > 4 %}
+                <div class="text-center mt-4">
+                    <button type="button" class="btn btn-accent btn-lg" data-bs-toggle="modal" data-bs-target="#allArtworksModal">
+                        <i class="fas fa-images me-2"></i> Ver más artworks ({{ artworks|length - 4 }})
+                    </button>
+                </div>
+                {% endif %}
+                {% else %}
+                <div class="text-center py-5">
+                    <p class="text-muted mb-3">No has publicado ningún artwork aún.</p>
+                    <a href="{{ url_for('artwork.create') }}" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> ¡Comparte tu primer artwork!
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Edición de Perfil -->
+{% if form %}
+<div class="modal fade" id="editProfileModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Editar Perfil</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form method="POST" action="{{ url_for('auth.profile') }}" enctype="multipart/form-data" id="profileForm">
+                    {{ form.hidden_tag() }}
+                    <div class="mb-3">
+                        {{ form.username.label(class="form-label") }}
+                        {{ form.username(class="form-control") }}
+                        {% for error in form.username.errors %}
+                        <span class="text-danger">{{ error }}</span>
+                        {% endfor %}
+                    </div>
+                    <div class="mb-3">
+                        {{ form.bio.label(class="form-label") }}
+                        {{ form.bio(class="form-control", rows="3") }}
+                        {% for error in form.bio.errors %}
+                        <span class="text-danger">{{ error }}</span>
+                        {% endfor %}
+                    </div>
+                    <div class="mb-3">
+                        {{ form.profile_picture.label(class="form-label") }}
+                        {{ form.profile_picture(class="form-control", onchange="handleImageSelect(this)") }}
+                        {% for error in form.profile_picture.errors %}
+                        <span class="text-danger">{{ error }}</span>
+                        {% endfor %}
+                    </div>
+                    <input type="hidden" name="cropped_image" id="cropped_image">
+                    <div class="d-grid gap-2">
+                        {{ form.submit(class="btn btn-primary") }}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Cropper -->
+<div class="modal fade" id="cropperModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Recortar Imagen</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="img-container" style="max-height: 500px;">
+                    <img id="cropperImage" src="" style="max-width: 100%;">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="cropButton">Recortar y Guardar</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Modal de Seguidores -->
+<div class="modal fade" id="followersModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Mis Seguidores</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                {% if current_user.followers %}
+                    <div class="list-group">
+                    {% for follower_id in current_user.followers %}
+                        {% set follower = get_user(follower_id) %}
+                        {% if follower %}
+                        <a href="{{ url_for('auth.user_profile', username=follower.username) }}" 
+                           class="list-group-item list-group-item-action d-flex align-items-center">
+                            <div class="flex-shrink-0">
+                                {% if follower.profile_picture %}
+                                <img src="{{ url_for('main.profile_picture', filename=follower.profile_picture) }}"
+                                     class="rounded-circle me-3" style="width: 40px; height: 40px; object-fit: cover;"
+                                     alt="Foto de perfil de {{ follower.username }}">
+                                {% else %}
+                                <img src="{{ url_for('static', filename='img/default.jpg') }}"
+                                     class="rounded-circle me-3" style="width: 40px; height: 40px; object-fit: cover;"
+                                     alt="Foto de perfil por defecto">
+                                {% endif %}
+                            </div>
+                            <div class="flex-grow-1">
+                                <h6 class="mb-0">{{ follower.username }}</h6>
+                                <small class="text-muted">{{ follower.bio[:50] + '...' if follower.bio and follower.bio|length > 50 else follower.bio }}</small>
+                            </div>
+                        </a>
+                        {% endif %}
+                    {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-center text-muted my-3">Aún no tienes seguidores</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Seguidos -->
+<div class="modal fade" id="followingModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Usuarios que sigo</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                {% if current_user.following %}
+                    <div class="list-group">
+                    {% for following_id in current_user.following %}
+                        {% set following = get_user(following_id) %}
+                        {% if following %}
+                        <a href="{{ url_for('auth.user_profile', username=following.username) }}" 
+                           class="list-group-item list-group-item-action d-flex align-items-center">
+                            <div class="flex-shrink-0">
+                                {% if following.profile_picture %}
+                                <img src="{{ url_for('main.profile_picture', filename=following.profile_picture) }}"
+                                     class="rounded-circle me-3" style="width: 40px; height: 40px; object-fit: cover;"
+                                     alt="Foto de perfil de {{ following.username }}">
+                                {% else %}
+                                <img src="{{ url_for('static', filename='img/default.jpg') }}"
+                                     class="rounded-circle me-3" style="width: 40px; height: 40px; object-fit: cover;"
+                                     alt="Foto de perfil por defecto">
+                                {% endif %}
+                            </div>
+                            <div class="flex-grow-1">
+                                <h6 class="mb-0">{{ following.username }}</h6>
+                                <small class="text-muted">{{ following.bio[:50] + '...' if following.bio and following.bio|length > 50 else following.bio }}</small>
+                            </div>
+                        </a>
+                        {% endif %}
+                    {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-center text-muted my-3">No sigues a ningún usuario aún</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Todos los Artworks -->
+<div class="modal fade" id="allArtworksModal" tabindex="-1">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Todos los Artworks ({{ artworks|length }})</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row row-cols-1 row-cols-md-3 row-cols-lg-4 g-4">
+                    {% for artwork in artworks %}
+                    <div class="col">
+                        <div class="card h-100">
+                            <img src="{{ url_for('main.uploaded_file', filename=artwork.image_path) }}"
+                                 class="card-img-top" alt="{{ artwork.title }}"
+                                 style="height: 200px; object-fit: cover;">
+                            <div class="card-body">
+                                <h5 class="card-title">{{ artwork.title }}</h5>
+                                <p class="card-text">{{ artwork.description[:100] }}{% if artwork.description|length > 100 %}...{% endif %}</p>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div class="small text-muted">
+                                        <i class="fas fa-heart text-danger"></i> {{ artwork.likes|length }}
+                                        <i class="fas fa-eye ms-2"></i> {{ artwork.views }}
+                                    </div>
+                                    {% if artwork.tags %}
+                                    <div class="small">
+                                        <i class="fas fa-tags text-accent"></i> {{ artwork.tags|length }}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="card-footer border-0 bg-transparent">
+                                <a href="{{ url_for('artwork.view', artwork_id=artwork.id) }}"
+                                   class="btn btn-sm btn-outline-primary w-100">Ver</a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- Añadir Cropper.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+<script>
+let cropper;
+const cropperModal = document.getElementById('cropperModal');
+const cropperImage = document.getElementById('cropperImage');
+const profileForm = document.getElementById('profileForm');
+
+function handleImageSelect(input) {
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        
+        reader.onload = function(e) {
+            cropperImage.src = e.target.result;
+            const modal = new bootstrap.Modal(cropperModal);
+            modal.show();
+            
+            // Destruir cropper anterior si existe
+            if (cropper) {
+                cropper.destroy();
+            }
+            
+            // Inicializar Cropper.js
+            cropper = new Cropper(cropperImage, {
+                aspectRatio: 1,
+                viewMode: 1,
+                dragMode: 'move',
+                autoCropArea: 1,
+                restore: false,
+                guides: true,
+                center: true,
+                highlight: false,
+                cropBoxMovable: true,
+                cropBoxResizable: true,
+                toggleDragModeOnDblclick: false,
+            });
+        };
+        
+        reader.readAsDataURL(input.files[0]);
+    }
+}
+
+// Manejar el botón de recortar
+document.getElementById('cropButton').addEventListener('click', function() {
+    const canvas = cropper.getCroppedCanvas({
+        width: 400,
+        height: 400
+    });
+    
+    // Convertir el canvas a Blob
+    canvas.toBlob(function(blob) {
+        // Crear un archivo a partir del blob
+        const file = new File([blob], 'profile_picture.jpg', { type: 'image/jpeg' });
+        
+        // Crear un nuevo FileList que contenga nuestro archivo
+        const dataTransfer = new DataTransfer();
+        dataTransfer.items.add(file);
+        
+        // Actualizar el input file con el nuevo archivo
+        const fileInput = document.querySelector('input[type="file"]');
+        fileInput.files = dataTransfer.files;
+        
+        // Cerrar el modal
+        const modal = bootstrap.Modal.getInstance(cropperModal);
+        modal.hide();
+        
+        // Destruir el cropper
+        cropper.destroy();
+    }, 'image/jpeg', 0.9);
+});
+
+// Limpiar todo cuando se cierra el modal
+cropperModal.addEventListener('hidden.bs.modal', function() {
+    if (cropper) {
+        cropper.destroy();
+    }
+});
+</script>
+{% endblock %} 

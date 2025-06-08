@@ -1,0 +1,302 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center">
+                <a href="{{ url_for('social.index') }}" class="btn btn-link text-dark me-2">
+                    <i class="fas fa-arrow-left"></i>
+                </a>
+                {% if other_user.profile_picture %}
+                <img src="{{ url_for('main.profile_picture', filename=other_user.profile_picture) }}" 
+                     alt="Foto de perfil" 
+                     class="rounded-circle me-2" 
+                     style="width: 40px; height: 40px; object-fit: cover;">
+                {% else %}
+                <img src="{{ url_for('static', filename='img/default.jpg') }}" 
+                     alt="Foto de perfil por defecto" 
+                     class="rounded-circle me-2" 
+                     style="width: 40px; height: 40px; object-fit: cover;">
+                {% endif %}
+                <h5 class="mb-0">{{ other_user.username }}</h5>
+            </div>
+            <a href="{{ url_for('auth.user_profile', username=other_user.username) }}" 
+               class="btn btn-outline-primary btn-sm">
+                <i class="fas fa-user me-1"></i>Ver perfil
+            </a>
+        </div>
+        <div class="card-body">
+            <div id="messageContainer" class="mb-4" style="height: 400px; overflow-y: auto;">
+                {% if not is_friend %}
+                <div class="alert alert-warning text-center">
+                    <i class="fas fa-lock me-2"></i>
+                    Solo puedes enviar mensajes a usuarios que sean tus amigos.
+                    Para ser amigos, deben seguirse mutuamente.
+                </div>
+                {% else %}
+                    {% if messages %}
+                        {% for message in messages %}
+                        <div class="message mb-3 {% if message.sender_id == current_user.id %}text-end{% endif %}">
+                            <div class="d-inline-block p-2 rounded {% if message.sender_id == current_user.id %}bg-slate text-white{% else %}bg-light-slate{% endif %}" 
+                                 style="max-width: 70%;">
+                                {{ message.content }}
+                                <br>
+                                <small class="{% if message.sender_id == current_user.id %}text-white-50{% else %}text-muted{% endif %}">
+                                    {{ message.created_at|datetime }}
+                                </small>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-center text-muted">No hay mensajes aún. ¡Sé el primero en escribir!</p>
+                    {% endif %}
+                {% endif %}
+            </div>
+
+            {% if is_friend %}
+            <form id="messageForm" class="mt-3">
+                <div class="input-group">
+                    <input type="text" 
+                           id="messageInput" 
+                           class="form-control" 
+                           placeholder="Escribe un mensaje..." 
+                           required>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-paper-plane"></i> Enviar
+                    </button>
+                </div>
+            </form>
+            {% else %}
+            <div class="text-center">
+                <button class="btn btn-primary follow-btn" 
+                        data-user-id="{{ other_user.id }}"
+                        data-following="{{ is_following|tojson }}"
+                        {% if is_following %}
+                        data-is-followed-by="{{ is_followed_by|tojson }}"
+                        {% endif %}>
+                    {% if is_following %}
+                        {% if is_followed_by %}
+                            <i class="fas fa-user-friends"></i> Amigos
+                        {% else %}
+                            <i class="fas fa-user-check"></i> Siguiendo
+                        {% endif %}
+                    {% else %}
+                        <i class="fas fa-user-plus"></i> Seguir
+                    {% endif %}
+                </button>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+:root {
+    --slate-color: #64748b;
+    --light-slate-color: #64748b;
+    --vivid-color: #3b82f6;
+}
+
+.bg-slate {
+    background-color: var(--vivid-color) !important;
+}
+
+.bg-light-slate {
+    background-color: var(--slate-color) !important;
+    color: white !important;
+}
+
+.message {
+    margin-bottom: 1rem;
+}
+
+.message .rounded {
+    border-radius: 1rem !important;
+    padding: 0.75rem !important;
+}
+
+.message .text-white-50 {
+    opacity: 0.7;
+}
+
+.message.text-end .rounded {
+    background-color: var(--vivid-color);
+}
+
+.message:not(.text-end) .rounded {
+    background-color: var(--slate-color);
+}
+
+/* Ajustar el color del texto en mensajes recibidos para mejor contraste */
+.bg-light-slate .text-muted {
+    color: rgba(255, 255, 255, 0.7) !important;
+}
+
+#messageContainer {
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+}
+</style>
+
+<script>
+// Definir las URLs base que necesitaremos
+const PROFILE_PICTURE_URL = "{{ url_for('main.profile_picture', filename='') }}";
+const DEFAULT_PROFILE_URL = "{{ url_for('static', filename='img/default.jpg') }}";
+const CHAT_BASE_URL = "{{ url_for('social.chat', user_id='') }}";
+
+document.addEventListener('DOMContentLoaded', function() {
+    const messageContainer = document.getElementById('messageContainer');
+    const messageForm = document.getElementById('messageForm');
+    const messageInput = document.getElementById('messageInput');
+    const followButton = document.querySelector('.follow-btn');
+    const recentConversationsContainer = document.querySelector('.list-group');
+
+    // Scroll al final de los mensajes
+    if (messageContainer) {
+        messageContainer.scrollTop = messageContainer.scrollHeight;
+    }
+
+    // Función para actualizar la conversación reciente
+    function updateRecentConversation(conversationData) {
+        if (!recentConversationsContainer) return;
+
+        // Buscar si ya existe una conversación con este usuario
+        const existingConversation = recentConversationsContainer.querySelector(`a[href*="${conversationData.user.id}"]`);
+        
+        // Crear el nuevo elemento de conversación
+        const newConversationHtml = `
+            <a href="${CHAT_BASE_URL}${conversationData.user.id}" class="list-group-item list-group-item-action">
+                <div class="d-flex align-items-center">
+                    <img src="${conversationData.user.profile_picture ? PROFILE_PICTURE_URL + conversationData.user.profile_picture : DEFAULT_PROFILE_URL}"
+                         class="rounded-circle me-3" style="width: 50px; height: 50px; object-fit: cover;"
+                         alt="Foto de perfil de ${conversationData.user.username}">
+                    <div>
+                        <h6 class="mb-1">${conversationData.user.username}</h6>
+                        <p class="mb-1 text-muted small">
+                            <i class="fas fa-reply text-muted me-1"></i>
+                            ${conversationData.last_message.content.substring(0, 50)}${conversationData.last_message.content.length > 50 ? '...' : ''}
+                        </p>
+                        <small class="text-muted">
+                            ${conversationData.last_message.created_at}
+                        </small>
+                    </div>
+                </div>
+            </a>
+        `;
+
+        if (existingConversation) {
+            // Si existe, actualizar la conversación existente
+            existingConversation.outerHTML = newConversationHtml;
+        } else {
+            // Si no existe, añadir al principio de la lista
+            recentConversationsContainer.insertAdjacentHTML('afterbegin', newConversationHtml);
+        }
+
+        // Si no hay conversaciones, eliminar el mensaje de "no hay conversaciones"
+        const emptyMessage = recentConversationsContainer.querySelector('.text-center.text-muted');
+        if (emptyMessage) {
+            emptyMessage.remove();
+        }
+    }
+
+    // Manejar envío de mensajes
+    if (messageForm) {
+        messageForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const content = messageInput.value.trim();
+            if (!content) return;
+
+            try {
+                const response = await fetch(`/social/send_message/{{ other_user.id }}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: JSON.stringify({ content: content })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    // Agregar el mensaje al contenedor usando el mismo formato que los mensajes existentes
+                    const messageDiv = document.createElement('div');
+                    messageDiv.className = 'message mb-3 text-end';
+                    const now = new Date();
+                    const time = `Hoy a las ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+                    messageDiv.innerHTML = `
+                        <div class="d-inline-block p-2 rounded bg-slate text-white" style="max-width: 70%; padding: 0.75rem;">
+                            ${content}
+                            <br>
+                            <small class="text-white-50" style="opacity: 0.7;">
+                                ${time}
+                            </small>
+                        </div>
+                    `;
+                    messageContainer.appendChild(messageDiv);
+                    messageContainer.scrollTop = messageContainer.scrollHeight;
+                    messageInput.value = '';
+
+                    // Actualizar la conversación reciente si es necesario
+                    if (data.conversation) {
+                        updateRecentConversation(data.conversation);
+                    }
+                } else {
+                    throw new Error('Error al enviar el mensaje');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error al enviar el mensaje. Por favor, inténtalo de nuevo.');
+            }
+        });
+    }
+
+    // Manejar botón de seguir
+    if (followButton) {
+        followButton.addEventListener('click', async function() {
+            const userId = this.dataset.userId;
+            const isFollowing = this.dataset.following === 'true';
+            
+            try {
+                if (isFollowing) {
+                    // Dejar de seguir
+                    const response = await fetch(`/social/unfollow_user/${userId}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    
+                    if (response.ok) {
+                        window.location.reload();
+                    }
+                } else {
+                    // Seguir
+                    const response = await fetch(`/social/follow_user/${userId}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.is_mutual) {
+                            window.location.reload();
+                        } else {
+                            this.dataset.following = 'true';
+                            this.innerHTML = '<i class="fas fa-user-check"></i> Siguiendo';
+                            this.classList.replace('btn-outline-primary', 'btn-primary');
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Ha ocurrido un error. Por favor, inténtalo de nuevo.');
+            }
+        });
+    }
+});
+</script>
+{% endblock %} 
