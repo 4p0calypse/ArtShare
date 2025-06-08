@@ -20,7 +20,18 @@ logger = logging.getLogger(__name__)
 # Registrar funciones de ayuda para las plantillas
 @bp.app_template_global()
 def get_user(user_id):
-    """Función de ayuda para obtener un usuario por su ID"""
+    """
+    Función de ayuda para obtener un usuario por su ID desde las plantillas
+    
+    Args:
+        user_id (str): ID del usuario a buscar
+        
+    Returns:
+        User|None: Instancia del usuario o None si no se encuentra
+        
+    Note:
+        Maneja errores silenciosamente para evitar interrupciones en las plantillas
+    """
     if not user_id:
         return None
     try:
@@ -32,7 +43,18 @@ def get_user(user_id):
 
 @bp.app_template_global()
 def format_points(points):
-    """Función de ayuda para formatear puntos"""
+    """
+    Función de ayuda para formatear puntos con separadores de miles
+    
+    Args:
+        points (int|str): Cantidad de puntos a formatear
+        
+    Returns:
+        str: Puntos formateados con separadores de miles
+        
+    Note:
+        Retorna "0" si el valor no es válido
+    """
     try:
         return f"{int(points):,}"
     except (ValueError, TypeError):
@@ -44,6 +66,19 @@ bp.add_app_template_global(get_artwork, 'get_artwork')
 @bp.route('/create', methods=['GET', 'POST'])
 @login_required
 def create():
+    """
+    Vista para crear un nuevo artwork
+    
+    Esta vista maneja tanto el formulario de creación como el procesamiento
+    de la imagen y la sincronización con el usuario autor.
+    
+    Returns:
+        str: Plantilla renderizada con el formulario o redirección
+        
+    Note:
+        Requiere autenticación
+        Maneja la subida de imágenes y la sincronización de artworks
+    """
     # Validar que el usuario actual es válido
     if not current_user.is_authenticated or not current_user.id:
         logger.error(f"Usuario inválido en create artwork: {current_user}")
@@ -117,6 +152,26 @@ def create():
 
 @bp.route('/<artwork_id>', methods=['GET', 'POST'])
 def view(artwork_id):
+    """
+    Vista para visualizar un artwork específico
+    
+    Esta vista maneja la visualización detallada de un artwork, incluyendo:
+    - Información del artwork y autor
+    - Sistema de likes
+    - Comentarios
+    - Donación de puntos
+    - Artworks similares
+    
+    Args:
+        artwork_id (str): ID del artwork a visualizar
+        
+    Returns:
+        str: Plantilla renderizada con los detalles del artwork
+        
+    Note:
+        Accesible sin autenticación pero con funcionalidad limitada
+        Incrementa el contador de vistas
+    """
     logger.info(f"Intentando cargar artwork con ID: {artwork_id}")
     
     # Intentar cargar el artwork
@@ -135,11 +190,8 @@ def view(artwork_id):
         flash('Error al cargar el autor del artwork.')
         return redirect(url_for('main.index'))
 
-    # Limpiar IDs para comparaciones consistentes
+    # Limpiar ID del autor para comparaciones consistentes
     clean_author_id = str(artwork.author_id).split('@')[-1] if '@' in str(artwork.author_id) else str(artwork.author_id)
-    clean_user_id = str(current_user.id).split('@')[-1] if '@' in str(current_user.id) else str(current_user.id) if current_user.is_authenticated else None
-    
-    logger.info(f"IDs limpios - Autor: {clean_author_id}, Usuario: {clean_user_id}")
     
     # Obtener todos los artworks para buscar similares
     all_artworks = sirope.find_all(Artwork)
@@ -155,9 +207,17 @@ def view(artwork_id):
     # Ordenar por número de likes sin limitar la cantidad
     artworks = sorted(artworks, key=lambda x: len(x.likes) if hasattr(x, 'likes') else 0, reverse=True)
 
-    # Inicializar el formulario de comentarios
+    # Inicializar variables para usuario autenticado
     comment_form = None
+    points_form = None
+    has_donated = False
+    clean_user_id = None
+
+    # Manejar funcionalidades que requieren autenticación
     if current_user.is_authenticated:
+        clean_user_id = str(current_user.id).split('@')[-1] if '@' in str(current_user.id) else str(current_user.id)
+        
+        # Formulario de comentarios
         comment_form = CommentForm()
         if comment_form.validate_on_submit():
             try:
@@ -180,53 +240,30 @@ def view(artwork_id):
                 logger.error(f"Error al guardar el comentario: {str(e)}")
                 flash('Error al publicar el comentario.')
         
+        # Formulario de puntos (solo si no es el autor)
+        if clean_user_id != clean_author_id:
+            if not hasattr(artwork, 'donors'):
+                artwork.donors = []
+                sirope.save(artwork)
+            
+            has_donated = clean_user_id in artwork.donors
+            if not has_donated:
+                points_form = GivePointsForm()
+
+    # Cargar comentarios
     comments = []
     if hasattr(artwork, 'comments'):
         comments = sirope.find_many_by_ids(artwork.comments, Comment)
         comments = sorted(comments, key=lambda x: x.created_at, reverse=True)
-        
-    # Solo mostrar el formulario de puntos si el usuario está autenticado y no es el autor
-    points_form = None
-    has_donated = False
-    if current_user.is_authenticated:
-        logger.info(f"Usuario autenticado: {current_user.username}")
-        if clean_user_id != clean_author_id:
-            logger.info("Usuario no es el autor")
-            if not hasattr(artwork, 'donors'):
-                logger.info("Artwork no tiene lista de donors, inicializando")
-                artwork.donors = []
-                sirope.save(artwork)
-            
-            # Limpiar los IDs de los donantes para comparación
-            donors_clean = [str(d).split('@')[-1] if '@' in str(d) else str(d) for d in artwork.donors]
-            logger.info(f"Donantes limpios: {donors_clean}")
-            logger.info(f"Usuario actual (limpio): {clean_user_id}")
-            
-            has_donated = clean_user_id in donors_clean
-            points_form = GivePointsForm()
-            
-            if has_donated:
-                logger.info("Usuario ya ha donado a este artwork")
-            else:
-                logger.info("Usuario no ha donado antes")
-        else:
-            logger.info("Usuario es el autor del artwork")
-    else:
-        logger.info("Usuario no está autenticado")
-    
-    artwork.increment_views()
-    artwork = sirope.save(artwork)
-    
+
     return render_template('artwork/view.html',
                          artwork=artwork,
                          author=author,
+                         similar_artworks=artworks,
+                         comment_form=comment_form,
                          comments=comments,
                          points_form=points_form,
-                         has_donated=has_donated,
-                         comment_form=comment_form,
-                         artworks=artworks,
-                         clean_user_id=clean_user_id,
-                         clean_author_id=clean_author_id)
+                         has_donated=has_donated)
 
 @bp.route('/<artwork_id>/edit', methods=['GET', 'POST'])
 @login_required
@@ -264,7 +301,25 @@ def edit(artwork_id):
 @bp.route('/<artwork_id>/delete', methods=['GET'])
 @login_required
 def delete(artwork_id):
-    """Elimina un artwork y todas sus referencias"""
+    """
+    Vista para eliminar un artwork
+    
+    Esta vista maneja el proceso completo de eliminación:
+    - Verificación de permisos
+    - Eliminación de la imagen del sistema de archivos
+    - Eliminación de comentarios asociados
+    - Actualización de referencias en el autor
+    
+    Args:
+        artwork_id (str): ID del artwork a eliminar
+        
+    Returns:
+        str: Redirección a la página principal o al artwork
+        
+    Note:
+        Requiere autenticación
+        Solo el autor puede eliminar su artwork
+    """
     try:
         artwork = get_artwork(artwork_id)
         if not artwork:
@@ -300,7 +355,7 @@ def delete(artwork_id):
                         sirope.delete(comment)
                 except Exception as e:
                     logger.error(f"Error al eliminar comentario {comment_id}: {e}")
-                    
+
         # 3. Eliminar el artwork de la lista de artworks del autor
         if hasattr(author, 'artworks'):
             try:
@@ -308,7 +363,7 @@ def delete(artwork_id):
                 sirope.save(author)
             except Exception as e:
                 logger.error(f"Error al eliminar artwork de la lista del autor: {e}")
-                
+
         # 4. Eliminar el artwork
         sirope.delete(artwork)
         
@@ -323,6 +378,26 @@ def delete(artwork_id):
 @bp.route('/<artwork_id>/give_points', methods=['POST'])
 @login_required
 def give_points(artwork_id):
+    """
+    Vista para donar puntos a un artwork
+    
+    Esta vista maneja el proceso de donación de puntos:
+    - Validación de puntos disponibles
+    - Creación de transacciones
+    - Actualización de balances
+    - Sincronización de usuarios
+    
+    Args:
+        artwork_id (str): ID del artwork receptor
+        
+    Returns:
+        str: Redirección a la vista del artwork
+        
+    Note:
+        Requiere autenticación
+        Verifica saldo suficiente
+        Crea transacciones para donante y receptor
+    """
     try:
         # Obtener el artwork
         artwork = sirope.find_by_id(artwork_id, Artwork)

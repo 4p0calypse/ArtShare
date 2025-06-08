@@ -4,24 +4,69 @@ import logging
 logger = logging.getLogger(__name__)
 
 class Artwork:
+    """
+    Modelo que representa una obra de arte en la aplicación ArtShare.
+    
+    Esta clase maneja toda la información y funcionalidad relacionada con las obras de arte,
+    incluyendo metadatos, interacciones sociales (likes, comentarios) y sistema de puntos.
+    
+    Attributes:
+        title (str): Título de la obra
+        description (str): Descripción detallada
+        image_path (str): Ruta al archivo de imagen
+        author_id (str): ID del usuario creador
+        tags (list): Lista de etiquetas asociadas
+        created_at (datetime): Fecha de creación
+        updated_at (datetime): Fecha de última modificación
+        likes (list): Lista de IDs de usuarios que dieron like
+        comments (list): Lista de IDs de comentarios
+        views (int): Contador de visualizaciones
+        points_received (int): Puntos recibidos por donaciones
+        donors (list): Lista de IDs de usuarios que donaron puntos
+        
+    Note:
+        Los IDs se manejan en formato string y se limpian de caracteres especiales
+        para mantener consistencia en la base de datos
+    """
+    
     def __init__(self, title, description, image_path, author_id, tags=None):
+        """
+        Inicializa una nueva obra de arte con los atributos básicos
+        
+        Args:
+            title (str): Título de la obra
+            description (str): Descripción detallada
+            image_path (str): Ruta al archivo de imagen
+            author_id (str): ID del usuario creador
+            tags (str|list, optional): Etiquetas separadas por comas o lista
+        """
         self.title = title
         self.description = description
         self.image_path = image_path
-        self.author_id = str(author_id).split('@')[-1] if '@' in str(author_id) else str(author_id)  # Asegurar formato consistente
-        self.tags = tags.split(',') if tags and isinstance(tags, str) else []  # Lista de etiquetas
+        self.author_id = str(author_id).split('@')[-1] if '@' in str(author_id) else str(author_id)
+        self.tags = tags.split(',') if tags and isinstance(tags, str) else []
         self.created_at = datetime.utcnow()
         self.updated_at = self.created_at
-        self.likes = []  # Lista de IDs de usuarios que dieron like
-        self.comments = []  # Lista de IDs de comentarios
+        self.likes = []
+        self.comments = []
         self.views = 0
-        self.points_received = 0  # Puntos donados por otros usuarios
-        self.donors = []  # Lista de IDs de usuarios que han donado puntos
-        self._id = None  # ID interno
+        self.points_received = 0
+        self.donors = []
+        self._id = None
 
     @property
     def id(self):
-        """Retorna el ID numérico para uso externo"""
+        """
+        Retorna el ID numérico para uso externo
+        
+        Limpia el ID de caracteres especiales para mantener consistencia
+        
+        Returns:
+            str: ID limpio de la obra o None si no está establecido
+            
+        Note:
+            Maneja errores silenciosamente para evitar interrupciones
+        """
         try:
             if self._id is None:
                 return None
@@ -34,7 +79,15 @@ class Artwork:
 
     @id.setter
     def id(self, value):
-        """Almacena el ID"""
+        """
+        Almacena el ID asegurando el formato correcto
+        
+        Args:
+            value: Valor a establecer como ID
+            
+        Note:
+            Limpia el ID de caracteres especiales y registra errores
+        """
         try:
             if value is None:
                 self._id = None
@@ -48,6 +101,18 @@ class Artwork:
             self._id = None
 
     def add_like(self, user_id):
+        """
+        Añade un like de un usuario a la obra
+        
+        Args:
+            user_id (str): ID del usuario que da like
+            
+        Returns:
+            bool: True si se añadió el like, False si ya existía
+            
+        Note:
+            Asegura la existencia del atributo likes antes de modificar
+        """
         if not hasattr(self, 'likes'):
             self.likes = []
         if user_id not in self.likes:
@@ -56,6 +121,18 @@ class Artwork:
         return False
 
     def remove_like(self, user_id):
+        """
+        Elimina el like de un usuario de la obra
+        
+        Args:
+            user_id (str): ID del usuario que quita el like
+            
+        Returns:
+            bool: True si se eliminó el like, False si no existía
+            
+        Note:
+            Asegura la existencia del atributo likes antes de modificar
+        """
         if not hasattr(self, 'likes'):
             self.likes = []
         if user_id in self.likes:
@@ -64,24 +141,53 @@ class Artwork:
         return False
 
     def add_comment(self, comment_id):
+        """
+        Añade un comentario a la obra
+        
+        Args:
+            comment_id (str): ID del comentario a añadir
+            
+        Note:
+            Asegura la existencia del atributo comments antes de modificar
+        """
         if not hasattr(self, 'comments'):
             self.comments = []
         self.comments.append(comment_id)
 
     def remove_comment(self, comment_id):
+        """
+        Elimina un comentario de la obra
+        
+        Args:
+            comment_id (str): ID del comentario a eliminar
+            
+        Note:
+            Asegura la existencia del atributo comments antes de modificar
+        """
         if not hasattr(self, 'comments'):
             self.comments = []
         if comment_id in self.comments:
             self.comments.remove(comment_id)
 
     def add_points(self, points, donor_id):
-        """Añade puntos donados por un usuario"""
+        """
+        Añade puntos donados por un usuario
+        
+        Args:
+            points (int): Cantidad de puntos a añadir
+            donor_id (str): ID del usuario donante
+            
+        Returns:
+            bool: True si se añadieron los puntos, False si el usuario ya había donado
+            
+        Note:
+            Asegura la existencia de los atributos necesarios y limpia el donor_id
+        """
         if not hasattr(self, 'donors'):
             self.donors = []
         if not hasattr(self, 'points_received'):
             self.points_received = 0
         
-        # Asegurar formato consistente del donor_id
         clean_donor_id = str(donor_id).split('@')[-1] if '@' in str(donor_id) else str(donor_id)
         
         if clean_donor_id not in self.donors:
@@ -91,6 +197,12 @@ class Artwork:
         return False
 
     def increment_views(self):
+        """
+        Incrementa el contador de visualizaciones
+        
+        Note:
+            Asegura la existencia del atributo views antes de modificar
+        """
         if not hasattr(self, 'views'):
             self.views = 0
         self.views += 1

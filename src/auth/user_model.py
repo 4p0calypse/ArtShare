@@ -6,7 +6,38 @@ import logging
 logger = logging.getLogger(__name__)
 
 class User(UserMixin):
+    """
+    Modelo que representa un usuario en la aplicación ArtShare.
+    
+    Esta clase maneja toda la información y funcionalidad relacionada con los usuarios,
+    incluyendo autenticación, perfil, relaciones sociales y gestión de artworks.
+    
+    Attributes:
+        username (str): Nombre de usuario único
+        email (str): Email único del usuario
+        password_hash (str): Hash de la contraseña del usuario
+        points (int): Puntos disponibles para donar
+        profile_picture (str): Ruta a la imagen de perfil
+        bio (str): Descripción del perfil
+        created_at (datetime): Fecha de creación de la cuenta
+        artworks (list): Lista de IDs de artworks creados
+        following (list): Lista de IDs de usuarios seguidos
+        followers (list): Lista de IDs de usuarios seguidores
+        
+    Note:
+        Hereda de UserMixin para proporcionar la implementación por defecto
+        de propiedades y métodos requeridos por Flask-Login
+    """
+    
     def __init__(self, username=None, email=None, password=None):
+        """
+        Inicializa un nuevo usuario con los atributos básicos
+        
+        Args:
+            username (str, optional): Nombre de usuario
+            email (str, optional): Email del usuario  
+            password (str, optional): Contraseña sin procesar
+        """
         self._id = None
         self.username = username
         self.email = email
@@ -22,17 +53,37 @@ class User(UserMixin):
         self.followers = []  # Lista de IDs de usuarios que lo siguen
 
     def get_id(self):
-        """Retorna el ID del usuario para Flask-Login"""
+        """
+        Retorna el ID del usuario para Flask-Login
+        
+        Este método es requerido por Flask-Login para identificar usuarios
+        
+        Returns:
+            str: ID del usuario o None si no está establecido
+        """
         return str(self._id) if self._id else None
 
     @property
     def id(self):
-        """Retorna el ID del usuario"""
+        """
+        Propiedad que retorna el ID del usuario
+        
+        Returns:
+            str: ID interno del usuario
+        """
         return self._id
 
     @id.setter
     def id(self, value):
-        """Establece el ID del usuario"""
+        """
+        Establece el ID del usuario asegurando el formato correcto
+        
+        Args:
+            value: Valor a establecer como ID
+            
+        Note:
+            Convierte el valor a string o None
+        """
         if value is None:
             self._id = None
         else:
@@ -94,8 +145,16 @@ class User(UserMixin):
             return False
         if not hasattr(self, 'following'):
             self.following = []
-        if str(user.id) not in self.following:
-            self.following.append(str(user.id))
+        if not hasattr(user, 'followers'):
+            user.followers = []
+            
+        str_user_id = str(user.id)
+        str_self_id = str(self.id)
+        
+        if str_user_id not in self.following:
+            self.following.append(str_user_id)
+            if str_self_id not in user.followers:
+                user.followers.append(str_self_id)
             return True
         return False
 
@@ -105,8 +164,16 @@ class User(UserMixin):
             return False
         if not hasattr(self, 'following'):
             self.following = []
-        if str(user.id) in self.following:
-            self.following.remove(str(user.id))
+        if not hasattr(user, 'followers'):
+            user.followers = []
+            
+        str_user_id = str(user.id)
+        str_self_id = str(self.id)
+        
+        if str_user_id in self.following:
+            self.following.remove(str_user_id)
+            if str_self_id in user.followers:
+                user.followers.remove(str_self_id)
             return True
         return False
 
@@ -149,7 +216,18 @@ class User(UserMixin):
         return str(user.id) in self.followers
 
     def ensure_attributes(self):
-        """Asegura que todos los atributos necesarios estén inicializados"""
+        """
+        Asegura que todos los atributos necesarios estén inicializados
+        
+        Inicializa con valores por defecto los atributos que podrían faltar,
+        especialmente útil al deserializar usuarios antiguos.
+        
+        Returns:
+            User: La instancia actual del usuario con atributos garantizados
+            
+        Note:
+            Este método es idempotente - puede llamarse múltiples veces sin efectos secundarios
+        """
         if not hasattr(self, 'artworks'):
             self.artworks = []
         if not hasattr(self, 'followers'):

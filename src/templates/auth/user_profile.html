@@ -158,7 +158,8 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
 
-        followButton.addEventListener('click', async function() {
+        followButton.addEventListener('click', async function(e) {
+            e.preventDefault();
             const userId = this.dataset.userId;
             const isFollowing = JSON.parse(this.dataset.following);
             
@@ -169,57 +170,28 @@ document.addEventListener('DOMContentLoaded', function() {
                     response = await fetch(`/social/unfollow_user/${userId}`, {
                         method: 'POST',
                         headers: {
-                            'Content-Type': 'application/json'
+                            'Content-Type': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest'
                         }
                     });
-                    
-                    if (response.ok) {
-                        const data = await response.json();
-                        if (data.success) {
-                            // Actualizar el contador de seguidores
-                            const followersCount = document.getElementById('followers-count');
-                            const currentCount = parseInt(followersCount.textContent);
-                            followersCount.textContent = currentCount - 1;
-                            
-                            // Actualizar el botón
-                            this.dataset.following = 'false';
-                            this.dataset.isFollowedBy = 'false';
-                            updateFollowButton(this, false, false);
-                        } else {
-                            alert(data.error || 'Error al dejar de seguir al usuario');
-                        }
-                    } else {
-                        const data = await response.json();
-                        alert(data.error || 'Error al dejar de seguir al usuario');
-                    }
                 } else {
                     // Seguir
                     response = await fetch(`/social/follow_user/${userId}`, {
                         method: 'POST',
                         headers: {
-                            'Content-Type': 'application/json'
+                            'Content-Type': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest'
                         }
                     });
-                    
-                    if (response.ok) {
-                        const data = await response.json();
-                        if (data.success) {
-                            // Actualizar el contador de seguidores
-                            const followersCount = document.getElementById('followers-count');
-                            const currentCount = parseInt(followersCount.textContent);
-                            followersCount.textContent = currentCount + 1;
-                            
-                            // Actualizar el botón
-                            this.dataset.following = 'true';
-                            this.dataset.isFollowedBy = data.is_mutual.toString();
-                            updateFollowButton(this, true, data.is_mutual);
-                        } else {
-                            alert(data.error || 'Error al seguir al usuario');
-                        }
-                    } else {
-                        const data = await response.json();
-                        alert(data.error || 'Error al seguir al usuario');
-                    }
+                }
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    // Redirigir a la página social
+                    window.location.replace('/social/');
+                } else {
+                    alert(data.error || 'Error al procesar la acción');
                 }
             } catch (error) {
                 console.error('Error:', error);

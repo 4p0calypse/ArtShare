@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h4 class="mb-0">Eliminar Cuenta</h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning">
+                        <h5 class="alert-heading">¡Advertencia!</h5>
+                        <p>Estás a punto de eliminar tu cuenta permanentemente. Esta acción no se puede deshacer.</p>
+                        <hr>
+                        <p class="mb-0">Se eliminarán:</p>
+                        <ul>
+                            <li>Todos tus artworks</li>
+                            <li>Tus puntos y transacciones</li>
+                            <li>Tu información de perfil</li>
+                        </ul>
+                        <p>Los comentarios y mensajes se mantendrán pero aparecerán como "Usuario eliminado".</p>
+                    </div>
+                    
+                    <form method="POST" action="{{ url_for('auth.delete_account') }}">
+                        <div class="form-group">
+                            <label for="confirmation">Para confirmar, escribe "ELIMINAR":</label>
+                            <input type="text" class="form-control" id="confirmation" name="confirmation" required>
+                        </div>
+                        <div class="mt-4 d-flex justify-content-between">
+                            <a href="{{ url_for('auth.user_profile', username=current_user.username) }}" class="btn btn-secondary">Cancelar</a>
+                            <button type="submit" class="btn btn-danger">Eliminar Cuenta Permanentemente</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 
