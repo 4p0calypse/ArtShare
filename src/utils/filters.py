@@ -1,7 +1,24 @@
 from datetime import datetime
 
 def format_date(value):
-    """Formatea una fecha en formato legible en español"""
+    """
+    Formatea una fecha en formato legible en español
+    
+    Esta función convierte fechas a un formato largo en español:
+    - Maneja strings ISO y objetos datetime
+    - Usa nombres de meses en español
+    - Formato: "día de mes de año"
+    
+    Args:
+        value (str|datetime): Fecha a formatear
+        
+    Returns:
+        str: Fecha formateada en español o string vacío si no hay valor
+        
+    Note:
+        Intenta convertir strings ISO a datetime
+        Retorna el valor original si la conversión falla
+    """
     if not value:
         return ""
     if isinstance(value, str):
@@ -19,7 +36,25 @@ def format_date(value):
     return f"{value.day} de {months[value.month]} de {value.year}"
 
 def format_datetime(value):
-    """Formatea una fecha y hora en formato legible en español"""
+    """
+    Formatea una fecha y hora en formato legible en español
+    
+    Esta función convierte fechas y horas a un formato inteligente:
+    - Para hoy: "Hoy a las HH:MM"
+    - Para ayer: "Ayer a las HH:MM"
+    - Otros días: "día de mes de año a las HH:MM"
+    
+    Args:
+        value (str|datetime): Fecha y hora a formatear
+        
+    Returns:
+        str: Fecha y hora formateada en español o string vacío si no hay valor
+        
+    Note:
+        Intenta convertir strings ISO a datetime
+        Retorna el valor original si la conversión falla
+        Usa formato 24h para las horas
+    """
     if not value:
         return ""
     if isinstance(value, str):

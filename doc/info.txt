@@ -1,4 +1,4 @@
 Título del proyecto: ArtShare - Plataforma de Compartición de Arte
-URL del proyecto: http://localhost:5000
+URL del proyecto: https://github.com/4p0calypse/ArtShare.git
 Apellidos y nombre: Sobral Pequeño Estela
 DNI: 53863477F

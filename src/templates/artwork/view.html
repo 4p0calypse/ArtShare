@@ -28,15 +28,15 @@
                     <div class="d-flex justify-content-between align-items-center">
                         <div class="artwork-stats">
                             <span class="me-3">
-                                <i class="fas fa-eye"></i> {{ artwork.views }} vistas
+                                <i class="fas fa-eye"></i> {{ artwork.views|default(0) }} vistas
                             </span>
                             <span class="me-3">
-                                <i class="fas fa-coins text-accent"></i> {{ artwork.points_received }} puntos
+                                <i class="fas fa-coins text-accent"></i> {{ artwork.points_received|default(0) }} puntos
                             </span>
                             {% if current_user.is_authenticated %}
                             <button type="button" class="btn btn-link like-btn text-decoration-none" 
                                     data-artwork-id="{{ artwork.id }}">
-                                {% if clean_user_id in artwork.likes|default([]) %}
+                                {% if current_user.id|string in artwork.likes|default([]) %}
                                     <i class="fas fa-heart text-danger"></i>
                                 {% else %}
                                     <i class="far fa-heart"></i>
@@ -50,7 +50,7 @@
                             </span>
                             {% endif %}
                         </div>
-                        {% if current_user.is_authenticated and clean_user_id == clean_author_id %}
+                        {% if current_user.is_authenticated and current_user.id|string == artwork.author_id|string %}
                         <div class="artwork-actions">
                             <a href="{{ url_for('artwork.edit', artwork_id=artwork.id) }}"
                                class="btn btn-accent btn-sm">
@@ -63,10 +63,10 @@
                             </a>
                         </div>
                         {% endif %}
+                    </div>
                 </div>
-            </div>
 
-            {% if points_form %}
+                {% if points_form %}
                 <div class="donation-section p-4 rounded shadow-sm mt-4">
                     <h5>Donar Puntos</h5>
                     {% if has_donated %}
@@ -115,8 +115,8 @@
                     {% else %}
                     <div class="alert alert-info mb-4">
                         <a href="{{ url_for('auth.login') }}" class="alert-link">Inicia sesión</a> para comentar en esta obra.
-            </div>
-            {% endif %}
+                    </div>
+                    {% endif %}
 
                     {% if comments %}
                         {% for comment in comments %}
@@ -127,11 +127,11 @@
                                     {% if comment_author %}
                                         <strong>{{ comment_author.username }}</strong>
                                     {% else %}
-                                        <strong>Usuario eliminado</strong>
+                                        <strong>ERROR 404</strong>
                                     {% endif %}
                                     <small class="text-muted ms-2">{{ comment.created_at|datetime }}</small>
                                 </div>
-                                {% if current_user.is_authenticated and (current_user.id == comment.author_id or current_user.id == artwork.author_id) %}
+                                {% if current_user.is_authenticated and (current_user.id|string == comment.author_id|string or current_user.id|string == artwork.author_id|string) %}
                                 <button class="btn btn-sm btn-outline-danger delete-comment" data-comment-id="{{ comment.id }}">
                                     <i class="fas fa-trash"></i>
                                 </button>
@@ -191,21 +191,16 @@
                     </div>
                     {% endif %}
                     <div class="row row-cols-1 row-cols-md-2 g-3">
-                        {% if artworks %}
-                            {% for other_artwork in artworks[:4] %}
+                        {% if similar_artworks %}
+                            {% for other_artwork in similar_artworks[:4] %}
                                 <div class="col">
                                     <a href="{{ url_for('artwork.view', artwork_id=other_artwork.id) }}" 
                                        class="text-decoration-none">
                                         <div class="card bg-transparent border-0">
                                             <img src="{{ url_for('main.uploaded_file', filename=other_artwork.image_path) }}"
-                                                 class="card-img-top rounded" alt="{{ other_artwork.title }}"
-                                                 style="height: 150px; object-fit: cover;">
-                                            <div class="card-body px-0 py-2">
-                                                <h6 class="card-title text-accent mb-1">{{ other_artwork.title }}</h6>
-                                                <div class="small text-muted">
-                                                    <i class="fas fa-heart text-danger"></i> {{ other_artwork.likes|length }}
-                                                    <i class="fas fa-eye ms-2"></i> {{ other_artwork.views }}
-                                                </div>
+                                                 class="card-img-top rounded" alt="{{ other_artwork.title }}">
+                                            <div class="card-body p-2">
+                                                <h6 class="card-title text-truncate mb-0">{{ other_artwork.title }}</h6>
                                             </div>
                                         </div>
                                     </a>
@@ -213,60 +208,10 @@
                             {% endfor %}
                         {% else %}
                             <div class="col-12">
-                                <p class="text-muted">No se encontraron obras similares.</p>
+                                <p class="text-muted text-center">No hay obras similares disponibles.</p>
                             </div>
-                            {% endif %}
+                        {% endif %}
                     </div>
-                    {% if artworks|length > 4 %}
-                    <div class="text-center mt-4">
-                        <button type="button" class="btn btn-accent btn-lg" data-bs-toggle="modal" data-bs-target="#relatedArtworksModal">
-                            <i class="fas fa-images me-2"></i> Ver más obras similares ({{ artworks|length - 4 }})
-                        </button>
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Modal de Obras Relacionadas -->
-<div class="modal fade" id="relatedArtworksModal" tabindex="-1" aria-labelledby="relatedArtworksModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-xl modal-dialog-scrollable">
-        <div class="modal-content bg-dark">
-            <div class="modal-header border-secondary">
-                <h5 class="modal-title" id="relatedArtworksModalLabel">Todas las Obras Relacionadas ({{ artworks|length }})</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <div class="row row-cols-1 row-cols-md-3 row-cols-lg-4 g-4">
-                    {% for other_artwork in artworks %}
-                    <div class="col">
-                        <a href="{{ url_for('artwork.view', artwork_id=other_artwork.id) }}" 
-                           class="text-decoration-none">
-                            <div class="card bg-transparent border-0">
-                                <img src="{{ url_for('main.uploaded_file', filename=other_artwork.image_path) }}"
-                                     class="card-img-top rounded" alt="{{ other_artwork.title }}"
-                                     style="height: 200px; object-fit: cover;">
-                                <div class="card-body px-0 py-2">
-                                    <h6 class="card-title text-accent mb-1">{{ other_artwork.title }}</h6>
-                                    <p class="card-text small text-muted mb-2">{{ other_artwork.description[:100] }}{% if other_artwork.description|length > 100 %}...{% endif %}</p>
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <div class="small text-muted">
-                                            <i class="fas fa-heart text-danger"></i> {{ other_artwork.likes|length }}
-                                            <i class="fas fa-eye ms-2"></i> {{ other_artwork.views }}
-                                        </div>
-                                        {% if other_artwork.tags %}
-                                        <div class="small">
-                                            <i class="fas fa-tags text-accent"></i> {{ other_artwork.tags|length }}
-                                        </div>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                            </div>
-                        </a>
-                    </div>
-                    {% endfor %}
                 </div>
             </div>
         </div>
@@ -274,351 +219,129 @@
 </div>
 
 <style>
-:root {
-    --dark-bg: #1a1a1a;
-    --card-bg: #2d2d2d;
-    --text-primary: #e0e0e0;
-    --text-secondary: #a0a0a0;
-    --accent-color: #5FCDD9;
-    --accent-hover: #04BFAD;
-    --border-color: #027373;
-    --danger-color: #ef5350;
-    --color-dark-teal: #027373;
-    --navbar-bg: #006D6D;  /* Color de la barra superior */
-    --dropdown-bg: #005555;  /* Color más oscuro para el dropdown */
-}
-
-body {
-    background-color: var(--dark-bg) !important;
-}
-
-.dark-theme {
-    background-color: var(--dark-bg);
-    color: var(--text-primary);
-    min-height: 100vh;
-}
-
 .artwork-container {
-    max-width: 100%;
+    background-color: var(--bg-color);
 }
 
 .artwork-image-container {
-    background-color: var(--card-bg);
-    border-radius: 12px;
-    overflow: hidden;
+    position: relative;
+    width: 100%;
     text-align: center;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+    background-color: var(--bg-color);
 }
 
 .artwork-image {
     max-width: 100%;
-    height: auto;
     max-height: 80vh;
     object-fit: contain;
 }
 
-.artwork-info, .donation-section, .comments-section, .artist-card, .other-artworks {
+.artwork-info {
     background-color: var(--card-bg);
-    border: 1px solid var(--border-color);
-}
-
-.artist-avatar {
-    border: 3px solid var(--accent-color);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .artwork-title {
-    font-size: 2rem;
-    font-weight: 600;
-    color: var(--text-primary);
+    color: var(--text-color);
 }
 
 .artwork-description {
-    font-size: 1.1rem;
-    line-height: 1.6;
-    color: var(--text-secondary);
+    color: var(--text-muted);
+    white-space: pre-line;
+}
+
+.artwork-tags .badge {
+    background-color: var(--accent-color);
+    color: var(--text-color);
 }
 
 .artwork-stats {
-    color: var(--text-secondary);
+    color: var(--text-muted);
 }
 
-.badge {
-    background-color: var(--accent-color);
-    color: var(--dark-bg);
-    padding: 0.5em 1em;
-    border-radius: 20px;
+.artist-card, .other-artworks {
+    background-color: var(--card-bg);
 }
 
-.text-accent {
-    color: var(--accent-color) !important;
+.artist-avatar {
+    object-fit: cover;
 }
 
-.btn-accent {
-    background-color: var(--accent-color);
-    color: var(--dark-bg);
-    border: none;
-    padding: 0.5rem 1rem;
-    font-weight: 500;
-    transition: all 0.2s ease-in-out;
-}
-
-.btn-accent:hover {
-    background-color: var(--accent-hover);
-    color: var(--dark-bg);
-    transform: translateY(-2px);
-}
-
-.btn-outline-accent {
-    color: var(--color-dark-teal);
-    border: 2px solid var(--color-dark-teal);
-    background: transparent;
-    transition: all 0.2s ease;
-}
-
-.btn-outline-accent:hover {
-    background-color: var(--accent-color);
-    color: var(--dark-bg);
-    border-color: var(--accent-color);
-}
-
-.btn-outline-danger {
-    color: var(--danger-color);
-    border: 2px solid var(--danger-color);
-    background: transparent;
-    transition: all 0.2s ease;
-}
-
-.btn-outline-danger:hover {
-    background-color: var(--danger-color);
-    color: var(--text-primary);
-}
-
-.form-control {
-    background-color: var(--dark-bg);
-    border-color: var(--border-color);
-    color: var(--text-primary);
-}
-
-.form-control:focus {
-    background-color: var(--dark-bg);
-    border-color: var(--accent-color);
-    color: var(--text-primary);
-    box-shadow: 0 0 0 0.2rem rgba(100, 181, 246, 0.25);
-}
-
-.text-muted {
-    color: var(--text-secondary) !important;
+.artist-bio {
+    color: var(--text-muted);
 }
 
 .comment {
-    transition: background-color 0.2s;
     border-bottom-color: var(--border-color) !important;
-}
-
-.comment:hover {
-    background-color: rgba(255, 255, 255, 0.05);
-}
-
-.other-artworks .card:hover {
-    transform: translateY(-5px);
-    transition: transform 0.2s ease-in-out;
-}
-
-.other-artworks .card-title {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 
 .like-btn {
+    color: var(--text-color);
     padding: 0;
-    color: var(--text-secondary);
-    border: none;
-    background: none;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
 }
 
 .like-btn:hover {
-    color: var(--danger-color);
-}
-
-.like-btn:hover i {
-    transform: scale(1.1);
-}
-
-.like-btn i {
-    transition: transform 0.2s ease;
-}
-
-.like-btn .text-danger {
-    color: var(--danger-color) !important;
-}
-
-@media (max-width: 768px) {
-    .container-fluid {
-        padding-left: 1rem !important;
-        padding-right: 1rem !important;
-    }
-    
-    .artwork-image {
-        max-height: 50vh;
-    }
-}
-
-.comment-form textarea {
-    background-color: var(--dark-bg);
-    border-color: var(--border-color);
-    color: var(--text-primary);
-    resize: vertical;
-}
-
-.comment-form textarea:focus {
-    background-color: var(--dark-bg);
-    border-color: var(--accent-color);
-    color: var(--text-primary);
-    box-shadow: 0 0 0 0.2rem rgba(100, 181, 246, 0.25);
-}
-
-.alert-info {
-    background-color: rgba(100, 181, 246, 0.1);
-    border-color: var(--accent-color);
-    color: var(--text-primary);
-}
-
-.alert-info .alert-link {
     color: var(--accent-color);
 }
 
-.alert-info .alert-link:hover {
-    color: var(--accent-hover);
-    text-decoration: none;
+.like-btn .fa-heart {
+    transition: transform 0.2s;
 }
 
-.tags-container {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    margin-bottom: 1rem;
+.like-btn:hover .fa-heart {
+    transform: scale(1.1);
 }
 
-.badge {
-    background-color: var(--accent-color);
-    color: var(--dark-bg);
-    padding: 0.5em 1em;
-    border-radius: 20px;
-    transition: all 0.2s ease-in-out;
-}
-
-.badge:hover {
-    background-color: var(--accent-hover);
-    transform: translateY(-2px);
-}
-
-/* Estilos para el dropdown de perfil */
-.dropdown-menu {
-    background-color: var(--dropdown-bg) !important;
-    border: 1px solid var(--border-color) !important;
-    z-index: 9999 !important;
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2) !important;
-}
-
-.dropdown-item {
-    color: var(--text-primary) !important;
-    transition: all 0.2s ease !important;
-}
-
-.dropdown-item:hover {
-    background-color: rgba(255, 255, 255, 0.1) !important;
-    color: var(--accent-color) !important;
-}
-
-.dropdown-divider {
-    border-color: var(--border-color) !important;
-}
-
-/* Asegurar que el dropdown siempre esté por encima */
-.dropdown {
-    position: relative !important;
-    z-index: 9999 !important;
-}
-
-/* Eliminar los estilos de sticky y ajustar los estilos del perfil */
-.artist-section {
-    margin-bottom: 2rem;
-}
-
-.artist-card {
-    margin-bottom: 1rem;
-}
-
-.other-artworks {
-    margin-top: 1rem;
-}
-
-@media (max-width: 768px) {
-    .container-fluid {
-        padding-left: 1rem !important;
-        padding-right: 1rem !important;
-    }
-    
-    .artwork-image {
-        max-height: 50vh;
-    }
-}
-
-/* Estilos para el modal de obras relacionadas */
-.modal-content.bg-dark {
-    background-color: var(--dark-bg) !important;
-    color: var(--text-primary);
-}
-
-.modal-header.border-secondary {
-    border-bottom-color: var(--border-color) !important;
-}
-
-.btn-close-white {
-    filter: invert(1) grayscale(100%) brightness(200%);
-}
-
-.modal-body .card {
-    transition: transform 0.2s ease-in-out;
-}
-
-.modal-body .card:hover {
-    transform: translateY(-5px);
-}
-
-.modal-body .card-title {
-    font-size: 1rem;
-    line-height: 1.4;
-    max-height: 2.8em;
-    overflow: hidden;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-}
-
-.modal-body .card-text {
-    max-height: 3em;
-    overflow: hidden;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
+.card-img-top {
+    height: 150px;
+    object-fit: cover;
 }
 </style>
 
+{% endblock %}
+
+{% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Manejar likes
+    const likeBtns = document.querySelectorAll('.like-btn');
+    likeBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const artworkId = this.dataset.artworkId;
+            fetch(`/artwork/${artworkId}/like`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const icon = this.querySelector('i');
+                    const likesCount = this.querySelector('.likes-count');
+                    
+                    if (data.liked) {
+                        icon.classList.remove('far');
+                        icon.classList.add('fas', 'text-danger');
+                    } else {
+                        icon.classList.remove('fas', 'text-danger');
+                        icon.classList.add('far');
+                    }
+                    
+                    likesCount.textContent = data.likes_count;
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+        });
+    });
+
     // Manejar eliminación de comentarios
-    document.querySelectorAll('.delete-comment').forEach(button => {
+    const deleteButtons = document.querySelectorAll('.delete-comment');
+    deleteButtons.forEach(button => {
         button.addEventListener('click', function() {
             if (confirm('¿Estás seguro de que quieres eliminar este comentario?')) {
-                const commentId = this.getAttribute('data-comment-id');
+                const commentId = this.dataset.commentId;
                 fetch(`/comment/${commentId}/delete`, {
                     method: 'POST',
                     headers: {
@@ -627,11 +350,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 })
                 .then(response => response.json())
                 .then(data => {
-                    if (data.message) {
-                        // Eliminar el comentario del DOM
+                    if (data.success) {
                         this.closest('.comment').remove();
                     } else {
-                        alert(data.error || 'Error al eliminar el comentario');
+                        alert('Error al eliminar el comentario');
                     }
                 })
                 .catch(error => {
@@ -643,5 +365,4 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 </script>
-
 {% endblock %} 

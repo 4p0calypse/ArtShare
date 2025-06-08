@@ -15,6 +15,22 @@ logger = logging.getLogger(__name__)
 @bp.route('/')
 @login_required
 def index():
+    """
+    Vista principal de la sección social
+    
+    Esta vista maneja la página social del usuario:
+    - Muestra usuarios seguidos y seguidores
+    - Lista usuarios sugeridos para seguir
+    - Muestra conversaciones recientes
+    
+    Returns:
+        str: Plantilla renderizada con datos sociales
+        
+    Note:
+        Requiere autenticación
+        Sincroniza datos del usuario actual
+        Maneja errores de usuarios no encontrados
+    """
     try:
         # Obtener ID del usuario actual
         current_user_id = sirope._extract_numeric_id(current_user.id)
@@ -259,45 +275,26 @@ def follow_user(user_id):
         # Asegurar que ambos usuarios tengan todos los atributos necesarios
         current_user_fresh.ensure_attributes()
         user_to_follow.ensure_attributes()
-            
-        str_numeric_id = str(numeric_id)
-        str_current_id = str(current_numeric_id)
         
-        # Verificar si ya lo sigue
-        if str_numeric_id in current_user_fresh.following:
+        # Intentar seguir al usuario
+        if current_user_fresh.follow(user_to_follow):
+            # Guardar ambos usuarios
+            sirope.save(current_user_fresh)
+            sirope.save(user_to_follow)
+            
+            # Verificar si hay seguimiento mutuo
+            is_mutual = user_to_follow.is_following(current_user_fresh)
+            
+            logger.info(f"Follow exitoso: {current_numeric_id} -> {numeric_id} (mutual: {is_mutual})")
+            
+            return jsonify({
+                'success': True,
+                'message': 'Usuario seguido correctamente',
+                'is_mutual': is_mutual
+            })
+        else:
             logger.warning(f"Usuario {current_numeric_id} ya sigue a {numeric_id}")
             return jsonify({'error': 'Ya sigues a este usuario'}), 400
-            
-        # Seguir al usuario
-        current_user_fresh.following.append(str_numeric_id)
-        user_to_follow.followers.append(str_current_id)
-        
-        # Guardar ambos usuarios
-        sirope.save(current_user_fresh)
-        sirope.save(user_to_follow)
-        
-        # Verificar que los cambios se guardaron correctamente
-        current_user_fresh = sirope.find_by_id(current_numeric_id, User)
-        user_to_follow = sirope.find_by_id(numeric_id, User)
-        
-        if str_numeric_id not in current_user_fresh.following:
-            logger.error("Los cambios en following no se guardaron correctamente")
-            return jsonify({'error': 'Error al actualizar la relación'}), 500
-            
-        if str_current_id not in user_to_follow.followers:
-            logger.error("Los cambios en followers no se guardaron correctamente")
-            return jsonify({'error': 'Error al actualizar la relación'}), 500
-        
-        # Verificar si hay seguimiento mutuo
-        is_mutual = str_current_id in user_to_follow.following
-        
-        logger.info(f"Follow exitoso: {current_numeric_id} -> {numeric_id} (mutual: {is_mutual})")
-        
-        return jsonify({
-            'success': True,
-            'message': 'Usuario seguido correctamente',
-            'is_mutual': is_mutual
-        })
             
     except Exception as e:
         logger.error(f"Error al seguir usuario: {str(e)}")
@@ -306,6 +303,25 @@ def follow_user(user_id):
 @bp.route('/unfollow_user/<user_id>', methods=['POST'])
 @login_required
 def unfollow_user(user_id):
+    """
+    Vista para dejar de seguir a un usuario
+    
+    Esta vista maneja el proceso de unfollow:
+    - Validación de usuarios
+    - Actualización de relaciones
+    - Sincronización bidireccional
+    
+    Args:
+        user_id (str): ID del usuario a dejar de seguir
+        
+    Returns:
+        Response: Respuesta JSON con resultado de la operación
+        
+    Note:
+        Requiere autenticación
+        Maneja errores de usuarios no encontrados
+        Asegura consistencia bidireccional
+    """
     try:
         # Extraer IDs numéricos
         numeric_id = sirope._extract_numeric_id(user_id)
@@ -328,42 +344,22 @@ def unfollow_user(user_id):
         # Asegurar que ambos usuarios tengan todos los atributos necesarios
         current_user_fresh.ensure_attributes()
         user_to_unfollow.ensure_attributes()
-            
-        str_numeric_id = str(numeric_id)
-        str_current_id = str(current_numeric_id)
         
-        # Verificar si lo sigue
-        if str_numeric_id not in current_user_fresh.following:
+        # Intentar dejar de seguir al usuario
+        if current_user_fresh.unfollow(user_to_unfollow):
+            # Guardar ambos usuarios
+            sirope.save(current_user_fresh)
+            sirope.save(user_to_unfollow)
+            
+            logger.info(f"Unfollow exitoso: {current_numeric_id} -> {numeric_id}")
+            
+            return jsonify({
+                'success': True,
+                'message': 'Usuario dejado de seguir correctamente'
+            })
+        else:
             logger.warning(f"Usuario {current_numeric_id} no sigue a {numeric_id}")
             return jsonify({'error': 'No sigues a este usuario'}), 400
-            
-        # Dejar de seguir al usuario
-        current_user_fresh.following.remove(str_numeric_id)
-        if str_current_id in user_to_unfollow.followers:
-            user_to_unfollow.followers.remove(str_current_id)
-        
-        # Guardar ambos usuarios
-        sirope.save(current_user_fresh)
-        sirope.save(user_to_unfollow)
-        
-        # Verificar que los cambios se guardaron correctamente
-        current_user_fresh = sirope.find_by_id(current_numeric_id, User)
-        user_to_unfollow = sirope.find_by_id(numeric_id, User)
-        
-        if str_numeric_id in current_user_fresh.following:
-            logger.error("Los cambios en following no se eliminaron correctamente")
-            return jsonify({'error': 'Error al actualizar la relación'}), 500
-            
-        if str_current_id in user_to_unfollow.followers:
-            logger.error("Los cambios en followers no se eliminaron correctamente")
-            return jsonify({'error': 'Error al actualizar la relación'}), 500
-        
-        logger.info(f"Unfollow exitoso: {current_numeric_id} -> {numeric_id}")
-        
-        return jsonify({
-            'success': True,
-            'message': 'Usuario dejado de seguir correctamente'
-        })
             
     except Exception as e:
         logger.error(f"Error al dejar de seguir usuario: {str(e)}")
@@ -372,6 +368,25 @@ def unfollow_user(user_id):
 @bp.route('/send_message/<user_id>', methods=['POST'])
 @login_required
 def send_message(user_id):
+    """
+    Vista para enviar un mensaje a otro usuario
+    
+    Esta vista maneja el envío de mensajes:
+    - Validación de usuarios
+    - Creación y guardado del mensaje
+    - Notificación al receptor
+    
+    Args:
+        user_id (str): ID del usuario destinatario
+        
+    Returns:
+        Response: Respuesta JSON con resultado del envío
+        
+    Note:
+        Requiere autenticación
+        Valida contenido del mensaje
+        Maneja errores de usuarios no encontrados
+    """
     try:
         # Intentar obtener el contenido del mensaje de JSON o form-data
         if request.is_json:

@@ -14,6 +14,22 @@ sirope = SiropeService()
 
 @bp.route('/')
 def index():
+    """
+    Vista de la página principal
+    
+    Esta vista maneja la página de inicio:
+    - Muestra los artworks más recientes
+    - Sincroniza artworks con sus autores
+    - Calcula estadísticas de usuarios y artworks
+    
+    Returns:
+        str: Plantilla renderizada con artworks y estadísticas
+        
+    Note:
+        Accesible sin autenticación
+        Muestra máximo 9 artworks en un grid 3x3
+        Calcula usuarios activos válidos
+    """
     # Obtener artworks recientes
     all_artworks = sirope.find_all(Artwork)
     # Filtrar artworks usando get_artwork para verificar que realmente existen
@@ -139,7 +155,24 @@ def explore():
 
 @bp.route('/uploads/<filename>')
 def uploaded_file(filename):
-    """Sirve archivos subidos de forma segura"""
+    """
+    Vista para servir archivos subidos de forma segura
+    
+    Esta vista maneja el acceso a archivos subidos:
+    - Intenta servir desde la carpeta de artworks
+    - Si no existe, intenta desde la carpeta general
+    - Maneja errores de archivos no encontrados
+    
+    Args:
+        filename (str): Nombre del archivo solicitado
+        
+    Returns:
+        Response: Archivo solicitado o error 404
+        
+    Note:
+        Verifica la existencia del archivo antes de servirlo
+        Registra errores para archivos no encontrados
+    """
     try:
         # Primero intentar en la carpeta de artworks
         return send_from_directory(current_app.config['ARTWORK_IMAGES_FOLDER'], filename)
@@ -153,7 +186,24 @@ def uploaded_file(filename):
 
 @bp.route('/profile_pictures/<filename>')
 def profile_picture(filename):
-    """Sirve imágenes de perfil de forma segura"""
+    """
+    Vista para servir imágenes de perfil de forma segura
+    
+    Esta vista maneja el acceso a imágenes de perfil:
+    - Verifica la existencia del archivo solicitado
+    - Sirve una imagen por defecto si no existe
+    - Maneja errores y logging
+    
+    Args:
+        filename (str): Nombre del archivo de imagen
+        
+    Returns:
+        Response: Imagen solicitada, imagen por defecto o error 404
+        
+    Note:
+        Intenta servir la imagen por defecto si la solicitada no existe
+        Registra errores y advertencias para mejor diagnóstico
+    """
     try:
         # Definir la ruta correcta para las imágenes de perfil
         profile_pictures_folder = os.path.join(current_app.root_path, 'static', 'uploads', 'profile_pictures')

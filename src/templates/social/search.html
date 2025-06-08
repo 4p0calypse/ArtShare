@@ -46,10 +46,30 @@
                                     <i class="fas fa-image"></i> {{ user.artworks|length }}
                                 </small>
                             </div>
-                            <a href="{{ url_for('auth.user_profile', username=user.username) }}" 
-                               class="btn btn-sm btn-outline-primary">
-                                Ver perfil
-                            </a>
+                            <div class="d-flex gap-2">
+                                {% if current_user.is_authenticated and current_user.id != user.id %}
+                                    {% set is_following = current_user.is_following(user) %}
+                                    {% set is_followed_by = user.is_following(current_user) %}
+                                    <button class="btn btn-sm follow-btn {% if is_following %}btn-outline-primary{% else %}btn-primary{% endif %}"
+                                            data-user-id="{{ user.id }}"
+                                            data-following="{{ is_following|tojson }}"
+                                            data-is-followed-by="{{ is_followed_by|tojson }}">
+                                        {% if is_following %}
+                                            {% if is_followed_by %}
+                                                <i class="fas fa-user-friends"></i>
+                                            {% else %}
+                                                <i class="fas fa-user-check"></i>
+                                            {% endif %}
+                                        {% else %}
+                                            <i class="fas fa-user-plus"></i>
+                                        {% endif %}
+                                    </button>
+                                {% endif %}
+                                <a href="{{ url_for('auth.user_profile', username=user.username) }}" 
+                                   class="btn btn-sm btn-outline-primary">
+                                    Ver perfil
+                                </a>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -64,6 +84,75 @@
         </div>
     {% endif %}
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const followButtons = document.querySelectorAll('.follow-btn');
+    followButtons.forEach(button => {
+        button.addEventListener('mouseenter', function() {
+            if (this.dataset.following === 'true') {
+                this.innerHTML = '<i class="fas fa-user-times"></i>';
+                this.classList.add('btn-outline-danger');
+                this.classList.remove('btn-outline-primary');
+            }
+        });
+
+        button.addEventListener('mouseleave', function() {
+            if (this.dataset.following === 'true') {
+                const isFollowedBy = JSON.parse(this.dataset.isFollowedBy);
+                if (isFollowedBy) {
+                    this.innerHTML = '<i class="fas fa-user-friends"></i>';
+                } else {
+                    this.innerHTML = '<i class="fas fa-user-check"></i>';
+                }
+                this.classList.remove('btn-outline-danger');
+                this.classList.add('btn-outline-primary');
+            }
+        });
+
+        button.addEventListener('click', async function(e) {
+            e.preventDefault();
+            const userId = this.dataset.userId;
+            const isFollowing = JSON.parse(this.dataset.following);
+            
+            try {
+                let response;
+                if (isFollowing) {
+                    // Dejar de seguir
+                    response = await fetch(`/social/unfollow_user/${userId}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    });
+                } else {
+                    // Seguir
+                    response = await fetch(`/social/follow_user/${userId}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    });
+                }
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    // Redirigir a la página social
+                    window.location.replace('/social/');
+                } else {
+                    alert(data.error || 'Error al procesar la acción');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error al procesar la acción');
+            }
+        });
+    });
+});
+</script>
 
 <style>
 .user-preview-card {
@@ -122,6 +211,23 @@
 
 .follow-btn {
     min-width: 38px;
+}
+
+.follow-btn.btn-outline-primary:hover {
+    background-color: #dc3545;
+    border-color: #dc3545;
+    color: white;
+}
+
+.follow-btn.btn-outline-primary:hover i.fa-user-friends,
+.follow-btn.btn-outline-primary:hover i.fa-user-check {
+    display: none;
+}
+
+.follow-btn.btn-outline-primary:hover::before {
+    font-family: "Font Awesome 5 Free";
+    content: "\f235";  /* Código del ícono fa-user-times */
+    font-weight: 900;
 }
 </style>
 
