@@ -284,13 +284,17 @@ def follow_user(user_id):
             
             # Verificar si hay seguimiento mutuo
             is_mutual = user_to_follow.is_following(current_user_fresh)
+            is_followed_by = user_to_follow.is_following(current_user_fresh)
             
-            logger.info(f"Follow exitoso: {current_numeric_id} -> {numeric_id} (mutual: {is_mutual})")
+            logger.info(f"Follow exitoso: {current_numeric_id} -> {numeric_id} (mutual: {is_mutual}, followed_by: {is_followed_by})")
             
             return jsonify({
                 'success': True,
                 'message': 'Usuario seguido correctamente',
-                'is_mutual': is_mutual
+                'is_mutual': is_mutual,
+                'is_followed_by': is_followed_by,
+                'followers_count': len(user_to_follow.followers),
+                'following_count': len(current_user_fresh.following)
             })
         else:
             logger.warning(f"Usuario {current_numeric_id} ya sigue a {numeric_id}")
@@ -303,25 +307,6 @@ def follow_user(user_id):
 @bp.route('/unfollow_user/<user_id>', methods=['POST'])
 @login_required
 def unfollow_user(user_id):
-    """
-    Vista para dejar de seguir a un usuario
-    
-    Esta vista maneja el proceso de unfollow:
-    - Validación de usuarios
-    - Actualización de relaciones
-    - Sincronización bidireccional
-    
-    Args:
-        user_id (str): ID del usuario a dejar de seguir
-        
-    Returns:
-        Response: Respuesta JSON con resultado de la operación
-        
-    Note:
-        Requiere autenticación
-        Maneja errores de usuarios no encontrados
-        Asegura consistencia bidireccional
-    """
     try:
         # Extraer IDs numéricos
         numeric_id = sirope._extract_numeric_id(user_id)
@@ -351,11 +336,20 @@ def unfollow_user(user_id):
             sirope.save(current_user_fresh)
             sirope.save(user_to_unfollow)
             
-            logger.info(f"Unfollow exitoso: {current_numeric_id} -> {numeric_id}")
+            # Verificar si aún hay seguimiento mutuo después del unfollow
+            is_mutual = user_to_unfollow.is_following(current_user_fresh)
+            is_followed_by = user_to_unfollow.is_following(current_user_fresh)
+            
+            logger.info(f"Unfollow exitoso: {current_numeric_id} -> {numeric_id} (mutual: {is_mutual}, followed_by: {is_followed_by})")
+            logger.info(f"Contadores después de unfollow - Usuario {numeric_id}: followers={len(user_to_unfollow.followers)}, Usuario {current_numeric_id}: following={len(current_user_fresh.following)}")
             
             return jsonify({
                 'success': True,
-                'message': 'Usuario dejado de seguir correctamente'
+                'message': 'Usuario dejado de seguir correctamente',
+                'is_mutual': is_mutual,
+                'is_followed_by': is_followed_by,
+                'followers_count': len(user_to_unfollow.followers),  # Seguidores del usuario que dejamos de seguir
+                'following_count': len(current_user_fresh.following)  # Seguidos del usuario actual
             })
         else:
             logger.warning(f"Usuario {current_numeric_id} no sigue a {numeric_id}")

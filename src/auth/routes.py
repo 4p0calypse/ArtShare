@@ -225,6 +225,10 @@ def register():
 def profile():
     form = ProfileForm()
     
+    # Obtener parámetros de ordenación
+    sort_by = request.args.get('sort_by', 'recent')
+    sort_order = request.args.get('sort_order', 'desc')
+    
     try:
         if form.validate_on_submit():
             # Obtener una copia fresca del usuario
@@ -291,13 +295,24 @@ def profile():
                 if artwork:
                     artworks.append(artwork)
             
-            # Ordenar artworks por fecha de creación (más recientes primero)
-            artworks.sort(key=lambda x: x.created_at if hasattr(x, 'created_at') else datetime.now(), reverse=True)
+            # Ordenar artworks según los parámetros
+            if sort_by == 'title':
+                artworks.sort(key=lambda x: x.title.lower(), reverse=(sort_order == 'desc'))
+            elif sort_by == 'likes':
+                artworks.sort(key=lambda x: len(x.likes), reverse=(sort_order == 'desc'))
+            elif sort_by == 'views':
+                artworks.sort(key=lambda x: x.views, reverse=(sort_order == 'desc'))
+            elif sort_by == 'points':
+                artworks.sort(key=lambda x: x.points_received, reverse=(sort_order == 'desc'))
+            else:  # 'recent' por defecto
+                artworks.sort(key=lambda x: x.created_at if hasattr(x, 'created_at') else datetime.now(), reverse=(sort_order == 'desc'))
         
         return render_template('auth/profile.html', 
                              title='Perfil',
                              form=form,
-                             artworks=artworks)
+                             artworks=artworks,
+                             sort_by=sort_by,
+                             sort_order=sort_order)
                              
     except Exception as e:
         logger.error(f"Error al actualizar perfil: {str(e)}")
@@ -307,6 +322,10 @@ def profile():
 @bp.route('/user/<username>')
 def user_profile(username):
     logger.info(f"Accediendo al perfil de usuario: {username}")
+    
+    # Obtener parámetros de ordenación
+    sort_by = request.args.get('sort_by', 'recent')
+    sort_order = request.args.get('sort_order', 'desc')
     
     # Obtener el usuario por nombre de usuario
     user = sirope.find_first(User, lambda u: u.username == username)
@@ -336,8 +355,17 @@ def user_profile(username):
         if artwork:
             artworks.append(artwork)
     
-    # Ordenar artworks por fecha de creación (más recientes primero)
-    artworks.sort(key=lambda x: x.created_at if hasattr(x, 'created_at') else datetime.now(), reverse=True)
+    # Ordenar artworks según los parámetros
+    if sort_by == 'title':
+        artworks.sort(key=lambda x: x.title.lower(), reverse=(sort_order == 'desc'))
+    elif sort_by == 'likes':
+        artworks.sort(key=lambda x: len(x.likes), reverse=(sort_order == 'desc'))
+    elif sort_by == 'views':
+        artworks.sort(key=lambda x: x.views, reverse=(sort_order == 'desc'))
+    elif sort_by == 'points':
+        artworks.sort(key=lambda x: x.points_received, reverse=(sort_order == 'desc'))
+    else:  # 'recent' por defecto
+        artworks.sort(key=lambda x: x.created_at if hasattr(x, 'created_at') else datetime.now(), reverse=(sort_order == 'desc'))
     
     # Obtener seguidores y seguidos
     followers = []
@@ -365,7 +393,9 @@ def user_profile(username):
                          user=user,
                          artworks=artworks,
                          followers=followers,
-                         following=following)
+                         following=following,
+                         sort_by=sort_by,
+                         sort_order=sort_order)
 
 @bp.route('/reset_password_request', methods=['GET', 'POST'])
 def reset_password_request():

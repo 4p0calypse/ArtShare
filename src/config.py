@@ -2,25 +2,31 @@ import os
 from datetime import timedelta
 
 class Config:
-    # Ruta base del proyecto
-    BASE_DIR = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
+    # Configuración básica
+    SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev'
     
-    SECRET_KEY = os.environ.get('SECRET_KEY') or 'clave-secreta-desarrollo'
+    # Configuración de archivos
+    STATIC_FOLDER = os.path.join('src', 'static')
+    UPLOAD_FOLDER = os.path.join('src', 'static', 'uploads')
+    ARTWORK_IMAGES_FOLDER = os.path.join('src', 'static', 'uploads', 'artworks')
+    PROFILE_PICTURES_FOLDER = os.path.join('src', 'static', 'uploads', 'profile_pictures')
+    MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB max-limit
     
-    # Configuración de uploads
-    UPLOAD_FOLDER = os.path.join(BASE_DIR, 'src', 'static', 'uploads')
-    PROFILE_PICTURES_FOLDER = os.path.join(UPLOAD_FOLDER, 'profile_pictures')
-    ARTWORK_IMAGES_FOLDER = os.path.join(UPLOAD_FOLDER, 'artworks')
-    MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB tamaño máximo de archivo
-    ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+    # Configuración de sesión
+    SESSION_TYPE = 'redis'
+    SESSION_REDIS = os.environ.get('REDIS_URL') or 'redis://localhost:6379'
     PERMANENT_SESSION_LIFETIME = timedelta(days=7)
     
-    # Configuración de la sesión con Redis
-    SESSION_TYPE = 'redis'
-    REDIS_URL = os.environ.get('REDIS_URL') or 'redis://localhost:6379/0'
-    SESSION_REDIS = REDIS_URL
-    SESSION_USE_SIGNER = True
-    SESSION_PERMANENT = True
+    # Configuración de puntos
+    POINTS_PER_ARTWORK = 100
+    MIN_WITHDRAWAL_POINTS = 1000
+    POINTS_TO_CURRENCY_RATE = 0.01  # 1 punto = 0.01€
+    
+    # Configuración de archivos permitidos
+    ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+    
+    # Ruta base del proyecto
+    BASE_DIR = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
     
     # Crear directorios de uploads si no existen
     os.makedirs(UPLOAD_FOLDER, exist_ok=True)

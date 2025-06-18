@@ -507,12 +507,16 @@ def toggle_like(artwork_id):
         if not hasattr(artwork, 'likes'):
             artwork.likes = []
 
+        # Limpiar IDs para comparación consistente
+        clean_user_id = str(current_user.id).split('@')[-1] if '@' in str(current_user.id) else str(current_user.id)
+        clean_likes = [str(like_id).split('@')[-1] if '@' in str(like_id) else str(like_id) for like_id in artwork.likes]
+
         # Toggle like
-        if current_user.id in artwork.likes:
+        if clean_user_id in clean_likes:
             artwork.likes.remove(current_user.id)
             liked = False
         else:
-            artwork.likes.append(current_user.id)
+            artwork.likes.append(clean_user_id)
             liked = True
 
         sirope.save(artwork)

@@ -36,7 +36,20 @@
                             {% if current_user.is_authenticated %}
                             <button type="button" class="btn btn-link like-btn text-decoration-none" 
                                     data-artwork-id="{{ artwork.id }}">
-                                {% if current_user.id|string in artwork.likes|default([]) %}
+                                {% set clean_user_id = current_user.id|string %}
+                                {% if '@' in clean_user_id %}
+                                    {% set clean_user_id = clean_user_id.split('@')[-1] %}
+                                {% endif %}
+                                {% set clean_likes = [] %}
+                                {% for like_id in artwork.likes|default([]) %}
+                                    {% set like_id_str = like_id|string %}
+                                    {% if '@' in like_id_str %}
+                                        {% set _ = clean_likes.append(like_id_str.split('@')[-1]) %}
+                                    {% else %}
+                                        {% set _ = clean_likes.append(like_id_str) %}
+                                    {% endif %}
+                                {% endfor %}
+                                {% if clean_user_id in clean_likes %}
                                     <i class="fas fa-heart text-danger"></i>
                                 {% else %}
                                     <i class="far fa-heart"></i>
@@ -66,14 +79,9 @@
                     </div>
                 </div>
 
-                {% if points_form %}
+                {% if points_form and not has_donated %}
                 <div class="donation-section p-4 rounded shadow-sm mt-4">
                     <h5>Donar Puntos</h5>
-                    {% if has_donated %}
-                        <div class="alert alert-info">
-                            Ya has donado puntos a esta obra. ¡Gracias por tu apoyo!
-                        </div>
-                    {% else %}
                     <form method="POST" action="{{ url_for('artwork.give_points', artwork_id=artwork.id) }}">
                         {{ points_form.hidden_tag() }}
                         <div class="mb-3">
@@ -90,7 +98,13 @@
                         </div>
                         {{ points_form.submit(class="btn btn-accent") }}
                     </form>
-                    {% endif %}
+                </div>
+                {% endif %}
+
+                {% if has_donated %}
+                <div class="alert alert-info mt-4">
+                    <i class="fas fa-check-circle me-2"></i>
+                    Ya has donado puntos a esta obra. ¡Gracias por tu apoyo!
                 </div>
                 {% endif %}
 
@@ -236,8 +250,9 @@
     object-fit: contain;
 }
 
-.artwork-info {
-    background-color: var(--card-bg);
+.artwork-info, .donation-section, .comments-section, .artist-card, .other-artworks {
+    background-color: #2D2D2D !important;
+    border: 1px solid #5fcdd9 !important;
 }
 
 .artwork-title {
@@ -256,10 +271,6 @@
 
 .artwork-stats {
     color: var(--text-muted);
-}
-
-.artist-card, .other-artworks {
-    background-color: var(--card-bg);
 }
 
 .artist-avatar {
@@ -310,8 +321,10 @@ document.addEventListener('DOMContentLoaded', function() {
             fetch(`/artwork/${artworkId}/like`, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
-                }
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+                },
+                credentials: 'same-origin'
             })
             .then(response => response.json())
             .then(data => {
@@ -345,13 +358,21 @@ document.addEventListener('DOMContentLoaded', function() {
                 fetch(`/comment/${commentId}/delete`, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json'
-                    }
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content
+                    },
+                    credentials: 'same-origin'
                 })
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Error en la respuesta del servidor');
+                    }
+                    return response.json();
+                })
                 .then(data => {
-                    if (data.success) {
-                        this.closest('.comment').remove();
+                    if (data.message === 'Comentario eliminado') {
+                        // Recargar la página después de eliminar el comentario
+                        window.location.reload();
                     } else {
                         alert('Error al eliminar el comentario');
                     }

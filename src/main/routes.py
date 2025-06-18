@@ -188,43 +188,17 @@ def uploaded_file(filename):
 def profile_picture(filename):
     """
     Vista para servir imágenes de perfil de forma segura
-    
-    Esta vista maneja el acceso a imágenes de perfil:
-    - Verifica la existencia del archivo solicitado
-    - Sirve una imagen por defecto si no existe
-    - Maneja errores y logging
-    
-    Args:
-        filename (str): Nombre del archivo de imagen
-        
-    Returns:
-        Response: Imagen solicitada, imagen por defecto o error 404
-        
-    Note:
-        Intenta servir la imagen por defecto si la solicitada no existe
-        Registra errores y advertencias para mejor diagnóstico
     """
     try:
-        # Definir la ruta correcta para las imágenes de perfil
-        profile_pictures_folder = os.path.join(current_app.root_path, 'static', 'uploads', 'profile_pictures')
-        
-        # Verificar si el archivo existe
+        # Intentar servir la imagen de perfil desde la carpeta de uploads
+        profile_pictures_folder = current_app.config['PROFILE_PICTURES_FOLDER']
         if filename and os.path.exists(os.path.join(profile_pictures_folder, filename)):
             logger.info(f"Sirviendo imagen de perfil: {filename}")
             return send_from_directory(profile_pictures_folder, filename)
-        else:
-            logger.warning(f"Imagen de perfil no encontrada: {filename}, usando imagen por defecto")
-            # Asegurarse de que la ruta al archivo por defecto es correcta
-            default_image_path = os.path.join(current_app.root_path, 'static', 'img', 'default.jpg')
-            if os.path.exists(default_image_path):
-                return send_from_directory(os.path.join(current_app.root_path, 'static', 'img'), 'default.jpg')
-            else:
-                logger.error("Imagen por defecto no encontrada")
-                abort(404)
+        
+        # Si no se encuentra, servir la imagen por defecto
+        logger.warning(f"Imagen de perfil no encontrada: {filename}, usando imagen por defecto")
+        return send_from_directory(os.path.join(current_app.root_path, 'static', 'img'), 'default.jpg')
     except Exception as e:
         logger.error(f"Error al servir imagen de perfil {filename}: {str(e)}")
-        # Intentar servir la imagen por defecto
-        try:
-            return send_from_directory(os.path.join(current_app.root_path, 'static', 'img'), 'default.jpg')
-        except:
-            abort(404) 
+        return send_from_directory(os.path.join(current_app.root_path, 'static', 'img'), 'default.jpg') 

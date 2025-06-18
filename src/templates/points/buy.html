@@ -26,27 +26,34 @@
             <div class="card">
                 <div class="card-body">
                     <form method="POST" action="{{ url_for('points.buy') }}" id="buyForm">
+                        {{ form.hidden_tag() }}
                         <div class="mb-3">
                             <label for="amount" class="form-label">Cantidad en Euros</label>
                             <div class="input-group">
                                 <span class="input-group-text">€</span>
-                                <input type="number" 
-                                       class="form-control" 
-                                       id="amount" 
-                                       name="amount" 
-                                       min="1" 
-                                       step="0.01" 
-                                       required
-                                       pattern="\d*\.?\d+"
-                                       placeholder="Introduce la cantidad en euros"
-                                       oninput="validateAmount(this)">
+                                {{ form.amount(class="form-control", 
+                                             id="amount",
+                                             min="1",
+                                             step="0.01",
+                                             required=true,
+                                             pattern="\d*\.?\d+",
+                                             placeholder="Introduce la cantidad en euros",
+                                             oninput="validateAmount(this)") }}
                             </div>
                             <div class="form-text">
                                 Recibirás <span id="pointsToReceive">0</span> puntos
                             </div>
+                            {% if form.amount.errors %}
+                            <div class="invalid-feedback" style="display: block;">
+                                {% for error in form.amount.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                            {% else %}
                             <div class="invalid-feedback" id="amountError">
                                 Por favor, introduce una cantidad válida (mínimo 1€)
                             </div>
+                            {% endif %}
                         </div>
                         
                         <div class="alert alert-info">
@@ -55,9 +62,7 @@
                         </div>
                         
                         <div class="d-grid">
-                            <button type="submit" class="btn btn-primary" id="submitBtn">
-                                <i class="fas fa-shopping-cart"></i> Comprar Puntos
-                            </button>
+                            {{ form.submit(class="btn btn-primary", id="submitBtn") }}
                         </div>
                     </form>
                 </div>
@@ -81,11 +86,11 @@
         if (amount < 1) {
             input.classList.add('is-invalid');
             submitBtn.disabled = true;
-            amountError.style.display = 'block';
+            if (amountError) amountError.style.display = 'block';
         } else {
             input.classList.remove('is-invalid');
             submitBtn.disabled = false;
-            amountError.style.display = 'none';
+            if (amountError) amountError.style.display = 'none';
         }
     }
 
@@ -95,7 +100,8 @@
         if (amount < 1) {
             e.preventDefault();
             document.getElementById('amount').classList.add('is-invalid');
-            document.getElementById('amountError').style.display = 'block';
+            const amountError = document.getElementById('amountError');
+            if (amountError) amountError.style.display = 'block';
         }
     });
 </script>

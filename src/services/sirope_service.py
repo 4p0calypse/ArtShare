@@ -88,9 +88,30 @@ class SiropeService:
 
     def _extract_numeric_id(self, id_value: str) -> str:
         """Extrae el ID numérico de un ID completo"""
-        if not id_value:
+        try:
+            if not id_value:
+                logger.warning("Intentando extraer ID numérico de un valor None o vacío")
+                return None
+                
+            # Convertir a string si no lo es
+            str_id = str(id_value)
+            
+            # Extraer el ID numérico
+            numeric_id = str_id.split('@')[-1] if '@' in str_id else str_id
+            
+            # Verificar que el ID sea válido
+            if not numeric_id or not numeric_id.strip():
+                logger.warning(f"ID numérico inválido extraído de: {id_value}")
+                return None
+                
+            # Limpiar el ID
+            clean_id = numeric_id.strip()
+            logger.debug(f"ID numérico extraído exitosamente: {clean_id} de {id_value}")
+            return clean_id
+            
+        except Exception as e:
+            logger.error(f"Error al extraer ID numérico de {id_value}: {e}")
             return None
-        return str(id_value).split('@')[-1] if '@' in str(id_value) else str(id_value)
 
     def _get_next_id(self, class_name: str) -> int:
         """Obtiene el siguiente ID para una clase"""
@@ -178,58 +199,38 @@ class SiropeService:
             return None
 
     def delete(self, obj: T) -> bool:
-        """Elimina un objeto de la base de datos y de Redis"""
-        try:
-            # Obtener el ID del objeto
-            obj_id = None
-            if hasattr(obj, '_id'):
-                obj_id = obj._id
-            elif hasattr(obj, 'id'):
-                obj_id = obj.id
-            
-            if not obj_id:
-                logger.error("No se puede eliminar un objeto sin ID")
-                return False
-            
-            numeric_id = self._extract_numeric_id(obj_id)
-            class_key = self._get_class_key(obj.__class__)
-            
-            # Asegurarnos de que el objeto tenga el ID correcto en formato Sirope
-            if not hasattr(obj, '_id') or not obj._id or '@' not in obj._id:
-                obj._id = f"{class_key}@{numeric_id}"
-            
-            success = True
-            
-            # 1. Eliminar de Sirope
-            if hasattr(self._sirope, 'delete'):
-                try:
-                    self._sirope.delete(obj)
-                    logger.info(f"Objeto eliminado de Sirope: {obj._id}")
-                except Exception as sirope_error:
-                    logger.error(f"Error al eliminar de Sirope: {sirope_error}")
-                    success = False
-            else:
-                logger.error("El objeto Sirope no tiene método delete")
-                success = False
-            
-            # 2. Eliminar de la caché en memoria
-            try:
-                if class_key in self._objects and numeric_id in self._objects[class_key]:
-                    del self._objects[class_key][numeric_id]
-                    logger.info(f"Objeto eliminado de la caché en memoria: {obj._id}")
-            except Exception as cache_error:
-                logger.warning(f"Error al eliminar de la caché en memoria: {cache_error}")
-            
-            # 3. Eliminar de Redis
-            try:
-                cache_key = f"sirope:obj:{class_key}:{numeric_id}"
-                self._redis.delete(cache_key)
-                logger.info(f"Objeto eliminado de Redis: {cache_key}")
-            except Exception as redis_error:
-                logger.warning(f"Error al eliminar de Redis: {redis_error}")
-            
-            return success
+        """
+        Elimina un objeto de la base de datos y la caché
         
+        Args:
+            obj: Objeto a eliminar
+            
+        Returns:
+            bool: True si se eliminó correctamente, False en caso contrario
+            
+        Note:
+            También elimina el objeto de la caché Redis si está disponible
+        """
+        try:
+            if not obj or not hasattr(obj, '_id'):
+                return False
+                
+            # Eliminar de Sirope
+            self._sirope.delete(obj)
+            
+            # Eliminar de la caché
+            try:
+                class_key = self._get_class_key(obj.__class__)
+                if class_key in self._objects:
+                    self._objects[class_key].pop(str(obj._id), None)
+                cache_key = f"sirope:obj:{class_key}:{obj._id}"
+                self._redis.delete(cache_key)
+                logger.info(f"Objeto eliminado de caché: {cache_key}")
+            except Exception as cache_error:
+                logger.warning(f"Error al eliminar de caché: {cache_error}")
+            
+            return True
+            
         except Exception as e:
             logger.error(f"Error al eliminar objeto: {str(e)}")
             return False
@@ -237,28 +238,7 @@ class SiropeService:
     def find_first(self, cls: Type[T], condition: Callable[[T], bool]) -> Optional[T]:
         """Encuentra el primer objeto que cumple una condición"""
         try:
-            # Primero buscar en memoria
-            class_key = self._get_class_key(cls)
-            if class_key in self._objects:
-                for obj in self._objects[class_key].values():
-                    if condition(obj):
-                        return obj
-            
-            # Si no se encuentra en memoria, buscar en Sirope
-            try:
-                all_objects = list(self._sirope.load_all(cls))
-                for obj in all_objects:
-                    # Guardar en memoria para futuros accesos
-                    obj_numeric_id = self._extract_numeric_id(obj._id)
-                    if class_key not in self._objects:
-                        self._objects[class_key] = {}
-                    self._objects[class_key][obj_numeric_id] = obj
-                    if condition(obj):
-                        return obj
-            except Exception as e:
-                logger.warning(f"Error al cargar objetos de Sirope: {e}")
-            
-            return None
+            return next((obj for obj in self._sirope.load_all(cls) if condition(obj)), None)
         except Exception as e:
             logger.error(f"Error al buscar objeto: {str(e)}")
             return None
@@ -394,15 +374,16 @@ class SiropeService:
                 user.artworks = []
             if not hasattr(user, 'followers'):
                 user.followers = []
-            user = self.save(user)
             if not hasattr(user, 'following'):
                 user.following = []
-            user = self.save(user)
             if not hasattr(user, 'points'):
                 user.points = 0
             if not hasattr(user, 'created_at'):
                 from datetime import datetime
                 user.created_at = datetime.utcnow()
+                
+            # Guardar el usuario una sola vez después de asegurar todos los atributos
+            user = self.save(user)
                 
             logger.info(f"Atributos de usuario verificados y corregidos: {user.username}")
             logger.info(f"Estado de following: {user.following}")
@@ -430,27 +411,31 @@ class SiropeService:
             return False
 
     def force_delete(self, obj: T) -> bool:
-        """Elimina un objeto directamente usando el método delete de Sirope"""
+        """
+        Fuerza la eliminación de un objeto usando múltiples métodos
+        
+        Esta función intenta eliminar el objeto de todas las formas posibles:
+        1. Usando el método delete de Sirope
+        2. Eliminando de la caché Redis
+        3. Eliminando de la memoria caché
+        4. Eliminando directamente del almacenamiento
+        
+        Args:
+            obj: Objeto a eliminar
+            
+        Returns:
+            bool: True si se eliminó correctamente por algún método
+        """
         try:
-            # Obtener el ID del objeto
-            obj_id = None
-            if hasattr(obj, '_id'):
-                obj_id = obj._id
-            elif hasattr(obj, 'id'):
-                obj_id = obj.id
-            
-            if not obj_id:
-                logger.error("No se puede eliminar un objeto sin ID")
+            if not obj or not hasattr(obj, '_id'):
                 return False
-            
-            numeric_id = self._extract_numeric_id(obj_id)
-            class_key = self._get_class_key(obj.__class__)
-            
+                
             success = True
+            class_key = self._get_class_key(obj.__class__)
+            numeric_id = self._extract_numeric_id(obj._id)
             
             # 1. Eliminar de Redis
             try:
-                # Eliminar solo la clave específica del objeto
                 cache_key = f"sirope:obj:{class_key}:{numeric_id}"
                 if self._redis.exists(cache_key):
                     self._redis.delete(cache_key)

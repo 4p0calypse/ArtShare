@@ -36,29 +36,36 @@
             <div class="card">
                 <div class="card-body">
                     <form method="POST" action="{{ url_for('points.withdraw') }}" id="withdrawForm">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <div class="mb-3">
-                            <label for="points" class="form-label">Cantidad de Puntos a Retirar</label>
+                            {{ form.points.label(class="form-label") }}
                             <div class="input-group">
                                 <span class="input-group-text">
                                     <i class="fas fa-coins"></i>
                                 </span>
-                                <input type="number" 
-                                       class="form-control" 
-                                       id="points" 
-                                       name="points" 
-                                       min="{{ min_points }}" 
-                                       max="{{ points }}"
-                                       step="100"
-                                       required
-                                       placeholder="Mínimo {{ format_points(min_points) }} puntos"
-                                       oninput="validatePoints(this)">
+                                {{ form.points(class="form-control",
+                                             id="points",
+                                             min=min_points,
+                                             max=points,
+                                             step="100",
+                                             required=true,
+                                             placeholder="Mínimo " ~ format_points(min_points) ~ " puntos",
+                                             oninput="validatePoints(this)") }}
                             </div>
                             <div class="form-text">
                                 Recibirás <span id="amountToReceive">0</span>€
                             </div>
+                            {% if form.points.errors %}
+                            <div class="invalid-feedback" style="display: block;">
+                                {% for error in form.points.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                            {% else %}
                             <div class="invalid-feedback" id="pointsError">
                                 Por favor, introduce una cantidad válida (mínimo {{ format_points(min_points) }} puntos)
                             </div>
+                            {% endif %}
                         </div>
                         
                         <div class="alert alert-info">
@@ -69,9 +76,7 @@
                         </div>
                         
                         <div class="d-grid">
-                            <button type="submit" class="btn btn-accent" id="submitBtn">
-                                <i class="fas fa-money-bill-wave"></i> Solicitar Retiro
-                            </button>
+                            {{ form.submit(class="btn btn-accent", id="submitBtn") }}
                         </div>
                     </form>
                 </div>
@@ -80,7 +85,9 @@
     </div>
 </div>
 
-{% block extra_js %}
+{% endblock %}
+
+{% block scripts %}
 <script>
     function validatePoints(input) {
         const points = parseInt(input.value) || 0;
@@ -97,11 +104,11 @@
         if (points < minPoints || points > maxPoints) {
             input.classList.add('is-invalid');
             submitBtn.disabled = true;
-            pointsError.style.display = 'block';
+            if (pointsError) pointsError.style.display = 'block';
         } else {
             input.classList.remove('is-invalid');
             submitBtn.disabled = false;
-            pointsError.style.display = 'none';
+            if (pointsError) pointsError.style.display = 'none';
         }
     }
 
@@ -114,9 +121,9 @@
         if (points < minPoints || points > maxPoints) {
             e.preventDefault();
             document.getElementById('points').classList.add('is-invalid');
-            document.getElementById('pointsError').style.display = 'block';
+            const pointsError = document.getElementById('pointsError');
+            if (pointsError) pointsError.style.display = 'block';
         }
     });
 </script>
-{% endblock %}
 {% endblock %} 

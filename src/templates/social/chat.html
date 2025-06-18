@@ -213,8 +213,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
+                        'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content,
                         'X-Requested-With': 'XMLHttpRequest'
                     },
+                    credentials: 'same-origin',
                     body: JSON.stringify({ content: content })
                 });
 
@@ -257,6 +259,7 @@ document.addEventListener('DOMContentLoaded', function() {
         followButton.addEventListener('click', async function() {
             const userId = this.dataset.userId;
             const isFollowing = this.dataset.following === 'true';
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
             
             try {
                 if (isFollowing) {
@@ -264,8 +267,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     const response = await fetch(`/social/unfollow_user/${userId}`, {
                         method: 'POST',
                         headers: {
-                            'Content-Type': 'application/json'
-                        }
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': csrfToken,
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                        credentials: 'same-origin'
                     });
                     
                     if (response.ok) {
@@ -276,8 +282,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     const response = await fetch(`/social/follow_user/${userId}`, {
                         method: 'POST',
                         headers: {
-                            'Content-Type': 'application/json'
-                        }
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': csrfToken,
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                        credentials: 'same-origin'
                     });
                     
                     if (response.ok) {

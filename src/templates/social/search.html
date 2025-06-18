@@ -114,6 +114,7 @@ document.addEventListener('DOMContentLoaded', function() {
             e.preventDefault();
             const userId = this.dataset.userId;
             const isFollowing = JSON.parse(this.dataset.following);
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
             
             try {
                 let response;
@@ -123,8 +124,10 @@ document.addEventListener('DOMContentLoaded', function() {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
+                            'X-CSRFToken': csrfToken,
                             'X-Requested-With': 'XMLHttpRequest'
-                        }
+                        },
+                        credentials: 'same-origin'
                     });
                 } else {
                     // Seguir
@@ -132,16 +135,18 @@ document.addEventListener('DOMContentLoaded', function() {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
+                            'X-CSRFToken': csrfToken,
                             'X-Requested-With': 'XMLHttpRequest'
-                        }
+                        },
+                        credentials: 'same-origin'
                     });
                 }
                 
                 const data = await response.json();
                 
                 if (response.ok && data.success) {
-                    // Redirigir a la página social
-                    window.location.replace('/social/');
+                    // Recargar la página para mostrar los cambios
+                    window.location.reload();
                 } else {
                     alert(data.error || 'Error al procesar la acción');
                 }

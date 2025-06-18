@@ -1,6 +1,7 @@
 from flask import Flask, send_from_directory
 from flask_login import LoginManager
 from flask_session import Session
+from flask_wtf.csrf import CSRFProtect
 from .config import Config
 from .services.sirope_service import SiropeService
 from .auth.user_model import User
@@ -19,10 +20,18 @@ logger = logging.getLogger(__name__)
 login_manager = LoginManager()
 sirope_service = SiropeService()
 sess = Session()
+csrf = CSRFProtect()
 
 def create_app(config_class=Config):
-    app = Flask(__name__)
+    app = Flask(__name__, static_folder='static')
     app.config.from_object(config_class)
+    app.config['WTF_CSRF_ENABLED'] = True
+    app.config['WTF_CSRF_SECRET_KEY'] = app.config['SECRET_KEY']
+    
+    # Ruta para servir archivos estáticos
+    @app.route('/static/<path:filename>')
+    def static_files(filename):
+        return send_from_directory(app.static_folder, filename)
     
     # Inicializar Redis y Flask-Session
     try:
@@ -47,6 +56,7 @@ def create_app(config_class=Config):
     login_manager.login_view = 'auth.login'
     login_manager.login_message = 'Por favor, inicia sesión para acceder a esta página.'
     login_manager.session_protection = 'strong'
+    csrf.init_app(app)
 
     # Registrar filtros personalizados
     app.jinja_env.filters['date'] = format_date
@@ -57,6 +67,7 @@ def create_app(config_class=Config):
     app.jinja_env.globals['format_points'] = format_points
     app.jinja_env.globals['format_currency'] = format_currency
     app.jinja_env.globals['now'] = datetime.utcnow
+    app.jinja_env.globals['csrf_token'] = lambda: csrf._get_token()
 
     # Registrar blueprints
     from .auth.routes import bp as auth_bp

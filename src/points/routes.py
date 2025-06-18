@@ -1,5 +1,8 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, current_app
 from flask_login import login_required, current_user
+from flask_wtf import FlaskForm
+from wtforms import FloatField, SubmitField, IntegerField
+from wtforms.validators import DataRequired, NumberRange
 from .model import PointsTransaction
 from ..services.sirope_service import SiropeService
 from ..utils.helpers import format_points, sync_user_points
@@ -9,6 +12,20 @@ import logging
 logger = logging.getLogger(__name__)
 bp = Blueprint('points', __name__)
 sirope = SiropeService()
+
+class BuyPointsForm(FlaskForm):
+    amount = FloatField('Cantidad en Euros', validators=[
+        DataRequired(),
+        NumberRange(min=1, message='La cantidad mínima es 1€')
+    ])
+    submit = SubmitField('Comprar Puntos')
+
+class WithdrawPointsForm(FlaskForm):
+    points = IntegerField('Cantidad de Puntos a Retirar', validators=[
+        DataRequired(),
+        NumberRange(min=1000, message='La cantidad mínima es 1000 puntos')
+    ])
+    submit = SubmitField('Solicitar Retiro')
 
 @bp.route('/balance')
 @login_required
@@ -28,9 +45,29 @@ def balance():
 @bp.route('/withdraw', methods=['GET', 'POST'])
 @login_required
 def withdraw():
+    form = WithdrawPointsForm()
+    form.points.validators[1].min = current_app.config['MIN_WITHDRAWAL_POINTS']
+    form.points.validators[1].max = current_user.points
+    form.points.validators[1].message = f'La cantidad debe estar entre {format_points(current_app.config["MIN_WITHDRAWAL_POINTS"])} y {format_points(current_user.points)} puntos'
+
     if request.method == 'POST':
+        logger.info(f"Datos del formulario: {request.form}")
+        if not form.validate():
+            logger.error(f"Errores de validación: {form.errors}")
+            if 'csrf_token' in form.errors:
+                logger.error("Error de validación CSRF")
+                flash('Error de seguridad. Por favor, recarga la página e intenta de nuevo.')
+            else:
+                flash('Por favor, corrige los errores en el formulario.')
+            return render_template('points/withdraw.html',
+                                form=form,
+                                points=current_user.points,
+                                min_points=current_app.config['MIN_WITHDRAWAL_POINTS'],
+                                conversion_rate=current_app.config['POINTS_TO_CURRENCY_RATE'])
+
+    if form.validate_on_submit():
         try:
-            points = int(request.form.get('points', 0))
+            points = form.points.data
             if not current_user.can_withdraw():
                 flash('No tienes suficientes puntos para retirar. Mínimo 1000 puntos.')
                 return redirect(url_for('points.balance'))
@@ -81,6 +118,7 @@ def withdraw():
             return redirect(url_for('points.withdraw'))
     
     return render_template('points/withdraw.html',
+                         form=form,
                          points=current_user.points,
                          min_points=current_app.config['MIN_WITHDRAWAL_POINTS'],
                          conversion_rate=current_app.config['POINTS_TO_CURRENCY_RATE'])
@@ -117,26 +155,10 @@ def transaction_detail(transaction_id):
 @bp.route('/buy', methods=['GET', 'POST'])
 @login_required
 def buy():
-    if request.method == 'POST':
+    form = BuyPointsForm()
+    if form.validate_on_submit():
         try:
-            # Obtener y validar la cantidad en euros
-            amount_str = request.form.get('amount', '').strip()
-            if not amount_str:
-                flash('Por favor, introduce una cantidad.')
-                return redirect(url_for('points.buy'))
-            
-            try:
-                amount = float(amount_str)
-                # Convertir a entero si es un número entero
-                if amount.is_integer():
-                    amount = int(amount)
-            except ValueError:
-                flash('Por favor, introduce un número válido.')
-                return redirect(url_for('points.buy'))
-            
-            if amount < 1:
-                flash('La cantidad mínima es 1€.')
-                return redirect(url_for('points.buy'))
+            amount = form.amount.data
             
             # Calcular puntos (1€ = 100 puntos)
             points = int(amount * 100)  # Asegurarnos de que los puntos sean enteros
@@ -189,13 +211,11 @@ def buy():
                     logger.error("No se pudo revertir la transacción")
                 raise e
             
-        except ValueError as ve:
-            logger.error(f"Error de validación: {str(ve)}")
-            flash('Por favor, introduce una cantidad válida.')
-            return redirect(url_for('points.buy'))
         except Exception as e:
             logger.error(f"Error al procesar la compra: {str(e)}")
             flash('Error al procesar la compra. Por favor, inténtalo de nuevo.')
             return redirect(url_for('points.buy'))
     
-    return render_template('points/buy.html') 
+    return render_template('points/buy.html',
+                         form=form,
+                         points=current_user.points) 

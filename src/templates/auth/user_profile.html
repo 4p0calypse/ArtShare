@@ -12,7 +12,7 @@
                          class="rounded-circle mb-3" 
                          style="width: 150px; height: 150px; object-fit: cover;">
                     {% else %}
-                    <img src="{{ url_for('static', filename='img/default.jpg') }}" 
+                    <img src="/static/img/default.jpg" 
                          alt="Foto de perfil" 
                          class="rounded-circle mb-3" 
                          style="width: 150px; height: 150px; object-fit: cover;">
@@ -23,25 +23,29 @@
                     </p>
                     <p class="card-text">{{ user.bio or 'Sin biografía' }}</p>
                     
-                    {% if current_user.is_authenticated and current_user.id != user.id %}
-                    <div class="mb-3">
-                        {% set is_following = current_user.is_following(user) %}
-                        {% set is_followed_by = user.is_following(current_user) %}
-                        <button class="btn follow-btn {% if is_following %}btn-outline-primary{% else %}btn-primary{% endif %}" 
-                                data-user-id="{{ user.id }}"
-                                data-following="{{ is_following|tojson }}"
-                                data-is-followed-by="{{ is_followed_by|tojson }}">
-                            {% if is_following %}
-                                {% if is_followed_by %}
-                                    <i class="fas fa-user-friends"></i> Amigos
-                                {% else %}
-                                    <i class="fas fa-user-check"></i> Siguiendo
-                                {% endif %}
-                            {% else %}
-                                <i class="fas fa-user-plus"></i> Seguir
-                            {% endif %}
-                        </button>
-                    </div>
+                    {% if current_user.is_authenticated %}
+                        {% set current_numeric_id = current_user.id.split('@')[-1] if '@' in current_user.id else current_user.id %}
+                        {% set user_numeric_id = user.id.split('@')[-1] if '@' in user.id else user.id %}
+                        {% if current_numeric_id != user_numeric_id %}
+                            <div class="mb-3">
+                                {% set is_following = current_user.is_following(user) %}
+                                {% set is_followed_by = user.is_following(current_user) %}
+                                <button class="btn follow-btn {% if is_following %}btn-outline-primary{% else %}btn-primary{% endif %}" 
+                                        data-user-id="{{ user.id }}"
+                                        data-following="{{ is_following|tojson }}"
+                                        data-is-followed-by="{{ is_followed_by|tojson }}">
+                                    {% if is_following %}
+                                        {% if is_followed_by %}
+                                            <i class="fas fa-user-friends"></i> Amigos
+                                        {% else %}
+                                            <i class="fas fa-user-check"></i> Siguiendo
+                                        {% endif %}
+                                    {% else %}
+                                        <i class="fas fa-user-plus"></i> Seguir
+                                    {% endif %}
+                                </button>
+                            </div>
+                        {% endif %}
                     {% endif %}
                     
                     <div class="d-flex justify-content-around mb-3">
@@ -117,6 +121,9 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Obtener el username del usuario actual
+    const currentUserUsername = '{{ current_user.username }}';
+    
     const followButton = document.querySelector('.follow-btn');
     if (followButton) {
         // Función para actualizar el botón según el estado
@@ -133,6 +140,21 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             } else {
                 button.innerHTML = '<i class="fas fa-user-plus"></i> Seguir';
+            }
+        }
+
+        // Función para actualizar los contadores
+        function updateCounters(followersCount, followingCount) {
+            const followersCounter = document.getElementById('followers-count');
+            const followingCounter = document.getElementById('following-count');
+            
+            // Solo actualizamos el contador de seguidores del perfil que estamos viendo
+            if (followersCounter) {
+                followersCounter.textContent = followersCount;
+            }
+            // Solo actualizamos el contador de seguidos si estamos en nuestro propio perfil
+            if (followingCounter && window.location.pathname.includes(currentUserUsername)) {
+                followingCounter.textContent = followingCount;
             }
         }
 
@@ -162,6 +184,7 @@ document.addEventListener('DOMContentLoaded', function() {
             e.preventDefault();
             const userId = this.dataset.userId;
             const isFollowing = JSON.parse(this.dataset.following);
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
             
             try {
                 let response;
@@ -171,27 +194,48 @@ document.addEventListener('DOMContentLoaded', function() {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
+                            'X-CSRFToken': csrfToken,
                             'X-Requested-With': 'XMLHttpRequest'
-                        }
+                        },
+                        credentials: 'same-origin'
                     });
+                    
+                    const data = await response.json();
+                    if (response.ok && data.success) {
+                        // Actualizar contadores
+                        updateCounters(data.followers_count, data.following_count);
+                        
+                        // Actualizar estado del botón y dataset
+                        this.dataset.following = 'false';
+                        this.dataset.isFollowedBy = data.is_followed_by.toString();
+                        updateFollowButton(this, false, data.is_followed_by);
+                    } else {
+                        throw new Error(data.error || 'Error al dejar de seguir');
+                    }
                 } else {
                     // Seguir
                     response = await fetch(`/social/follow_user/${userId}`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
+                            'X-CSRFToken': csrfToken,
                             'X-Requested-With': 'XMLHttpRequest'
-                        }
+                        },
+                        credentials: 'same-origin'
                     });
-                }
-                
-                const data = await response.json();
-                
-                if (response.ok && data.success) {
-                    // Redirigir a la página social
-                    window.location.replace('/social/');
-                } else {
-                    alert(data.error || 'Error al procesar la acción');
+                    
+                    const data = await response.json();
+                    if (response.ok && data.success) {
+                        // Actualizar contadores
+                        updateCounters(data.followers_count, data.following_count);
+                        
+                        // Actualizar estado del botón y dataset
+                        this.dataset.following = 'true';
+                        this.dataset.isFollowedBy = data.is_followed_by.toString();
+                        updateFollowButton(this, true, data.is_followed_by);
+                    } else {
+                        throw new Error(data.error || 'Error al seguir');
+                    }
                 }
             } catch (error) {
                 console.error('Error:', error);

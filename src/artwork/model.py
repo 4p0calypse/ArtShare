@@ -112,11 +112,19 @@ class Artwork:
             
         Note:
             Asegura la existencia del atributo likes antes de modificar
+            Limpia los IDs para mantener consistencia
         """
         if not hasattr(self, 'likes'):
             self.likes = []
-        if user_id not in self.likes:
-            self.likes.append(user_id)
+            
+        # Limpiar ID del usuario
+        clean_user_id = str(user_id).split('@')[-1] if '@' in str(user_id) else str(user_id)
+        
+        # Limpiar IDs existentes
+        clean_likes = [str(like_id).split('@')[-1] if '@' in str(like_id) else str(like_id) for like_id in self.likes]
+        
+        if clean_user_id not in clean_likes:
+            self.likes.append(clean_user_id)
             return True
         return False
 
@@ -132,12 +140,20 @@ class Artwork:
             
         Note:
             Asegura la existencia del atributo likes antes de modificar
+            Limpia los IDs para mantener consistencia
         """
         if not hasattr(self, 'likes'):
             self.likes = []
-        if user_id in self.likes:
-            self.likes.remove(user_id)
-            return True
+            
+        # Limpiar ID del usuario
+        clean_user_id = str(user_id).split('@')[-1] if '@' in str(user_id) else str(user_id)
+        
+        # Limpiar IDs existentes y buscar el like a eliminar
+        for i, like_id in enumerate(self.likes):
+            clean_like_id = str(like_id).split('@')[-1] if '@' in str(like_id) else str(like_id)
+            if clean_like_id == clean_user_id:
+                self.likes.pop(i)
+                return True
         return False
 
     def add_comment(self, comment_id):

@@ -31,7 +31,7 @@ def run_app(python_path):
     app = src.create_app()
 
     # Ejecutar siempre en modo producción
-    app.run(debug=False)
+    app.run(debug=True)
 
 if __name__ == "__main__":
     base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

@@ -143,39 +143,77 @@ class User(UserMixin):
         """Sigue a un usuario"""
         if not user or not user.id:
             return False
+            
+        # Asegurar que ambos usuarios tengan las listas necesarias
         if not hasattr(self, 'following'):
             self.following = []
         if not hasattr(user, 'followers'):
             user.followers = []
             
-        str_user_id = str(user.id)
-        str_self_id = str(self.id)
-        
-        if str_user_id not in self.following:
-            self.following.append(str_user_id)
-            if str_self_id not in user.followers:
-                user.followers.append(str_self_id)
-            return True
-        return False
+        # Convertir IDs a string y asegurar que sean numéricos
+        try:
+            from ..services.sirope_service import SiropeService
+            sirope_service = SiropeService()
+            str_user_id = str(user.id)
+            str_self_id = str(self.id)
+            
+            # Verificar que los IDs sean válidos
+            if not str_user_id or not str_self_id:
+                logger.error("IDs inválidos al intentar seguir")
+                return False
+                
+            # Verificar que no se intente seguirse a sí mismo
+            if str_user_id == str_self_id:
+                return False
+                
+            # Añadir las relaciones si no existen
+            if str_user_id not in self.following:
+                self.following.append(str_user_id)
+                if str_self_id not in user.followers:
+                    user.followers.append(str_self_id)
+                return True
+            return False
+            
+        except Exception as e:
+            logger.error(f"Error al seguir usuario: {e}")
+            return False
 
     def unfollow(self, user):
         """Deja de seguir a un usuario"""
         if not user or not user.id:
             return False
+            
+        # Asegurar que ambos usuarios tengan las listas necesarias
         if not hasattr(self, 'following'):
             self.following = []
         if not hasattr(user, 'followers'):
             user.followers = []
             
-        str_user_id = str(user.id)
-        str_self_id = str(self.id)
-        
-        if str_user_id in self.following:
-            self.following.remove(str_user_id)
-            if str_self_id in user.followers:
-                user.followers.remove(str_self_id)
-            return True
-        return False
+        # Convertir IDs a string
+        try:
+            str_user_id = str(user.id)
+            str_self_id = str(self.id)
+            
+            # Verificar que los IDs sean válidos
+            if not str_user_id or not str_self_id:
+                logger.error("IDs inválidos al intentar dejar de seguir")
+                return False
+                
+            # Verificar que no se intente dejar de seguirse a sí mismo
+            if str_user_id == str_self_id:
+                return False
+                
+            # Eliminar las relaciones si existen
+            if str_user_id in self.following:
+                self.following.remove(str_user_id)
+                if str_self_id in user.followers:
+                    user.followers.remove(str_self_id)
+                return True
+            return False
+            
+        except Exception as e:
+            logger.error(f"Error al dejar de seguir usuario: {e}")
+            return False
 
     def add_follower(self, user):
         """Añade un seguidor"""
@@ -205,7 +243,13 @@ class User(UserMixin):
             return False
         if not hasattr(self, 'following'):
             self.following = []
-        return str(user.id) in self.following
+            
+        try:
+            str_user_id = str(user.id)
+            return str_user_id in self.following
+        except Exception as e:
+            logger.error(f"Error al verificar si sigue al usuario: {e}")
+            return False
 
     def is_followed_by(self, user):
         """Verifica si este usuario es seguido por el usuario dado"""
@@ -213,7 +257,13 @@ class User(UserMixin):
             return False
         if not hasattr(self, 'followers'):
             self.followers = []
-        return str(user.id) in self.followers
+            
+        try:
+            str_user_id = str(user.id)
+            return str_user_id in self.followers
+        except Exception as e:
+            logger.error(f"Error al verificar si es seguido por el usuario: {e}")
+            return False
 
     def ensure_attributes(self):
         """
